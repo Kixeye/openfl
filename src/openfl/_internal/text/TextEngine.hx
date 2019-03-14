@@ -755,6 +755,7 @@ class TextEngine
 		var previousSpaceIndex = -2; // -1 equals not found, -2 saves extra comparison in `breakIndex == previousSpaceIndex`
 		var spaceIndex = text.indexOf(" ");
 		var breakIndex = getLineBreakIndex();
+		var rangeIsValid = true;
 
 		var offsetX = 2.0;
 		var offsetY = 2.0;
