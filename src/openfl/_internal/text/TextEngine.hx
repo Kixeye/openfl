@@ -755,7 +755,6 @@ class TextEngine
 		var previousSpaceIndex = -2; // -1 equals not found, -2 saves extra comparison in `breakIndex == previousSpaceIndex`
 		var spaceIndex = text.indexOf(" ");
 		var breakIndex = getLineBreakIndex();
-		var rangeIsValid = true;
 
 		var offsetX = 2.0;
 		var offsetY = 2.0;
@@ -997,7 +996,7 @@ class TextEngine
 				positions = [];
 				widthValue = 0;
 
-				while (rangeIsValid) {
+				while (true) {
 					if (tempIndex != tempRangeEnd) {
 						var tempPositions = getPositions(text, tempIndex, tempRangeEnd);
 						positions = positions.concat(tempPositions);
@@ -1064,7 +1063,7 @@ class TextEngine
 			else
 			{
 				// fill in all text from start to end, including any format changes
-				while (rangeIsValid) {
+				while (true) {
 					var tempRangeEnd = endIndex < formatRange.end ? endIndex : formatRange.end;
 
 					if (textIndex != tempRangeEnd)
