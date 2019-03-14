@@ -756,7 +756,6 @@ class TextEngine
 		var previousSpaceIndex = -2; // -1 equals not found, -2 saves extra comparison in `breakIndex == previousSpaceIndex`
 		var spaceIndex = text.indexOf(" ");
 		var breakIndex = getLineBreakIndex();
-		var rangeIsValid = true;
 
 		var offsetX = 2.0;
 		var offsetY = 2.0;
@@ -958,7 +957,7 @@ class TextEngine
 			}
 		}
 
-		#if !js inline #end function nextFormatRange():Void
+		#if !js inline #end function nextFormatRange():Bool
 
 		{
 			if (rangeIndex < textFormatRanges.length - 1)
@@ -972,9 +971,9 @@ class TextEngine
 				#end
 
 				font = getFontInstance(currentFormat);
-				rangeIsValid = true;
+				return true;
 			}
-			rangeIsValid = false;
+			return false;
 		}
 
 		#if !js inline #end function setFormattedPositions(startIndex:Int, endIndex:Int)
@@ -996,7 +995,7 @@ class TextEngine
 				positions = [];
 				widthValue = 0;
 
-				while (rangeIsValid) {
+				while (true) {
 					if (tempIndex != tempRangeEnd) {
 						var tempPositions = getPositions(text, tempIndex, tempRangeEnd);
 						positions = positions.concat(tempPositions);
@@ -1004,10 +1003,11 @@ class TextEngine
 
 					if (tempRangeEnd != endIndex)
 					{
-						nextFormatRange();
+						var hasNext = nextFormatRange();
 
 						tempIndex = tempRangeEnd;
 						tempRangeEnd = endIndex < formatRange.end ? endIndex : formatRange.end;
+						if (!hasNext && tempIndex == tempRangeEnd) break;
 
 						countRanges++;
 					}
@@ -1057,7 +1057,7 @@ class TextEngine
 			else
 			{
 				// fill in all text from start to end, including any format changes
-				while (rangeIsValid) {
+				while (true) {
 					var tempRangeEnd = endIndex < formatRange.end ? endIndex : formatRange.end;
 
 					if (textIndex != tempRangeEnd)
@@ -1086,8 +1086,9 @@ class TextEngine
 
 					if (tempRangeEnd == endIndex) break;
 
-					nextFormatRange();
+					var hasNext = nextFormatRange();
 					setLineMetrics();
+					if (!hasNext && tempRangeEnd == textIndex) break;
 				}
 			}
 
