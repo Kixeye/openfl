@@ -822,7 +822,8 @@ class TextEngine {
 		var previousSpaceIndex = -2; // -1 equals not found, -2 saves extra comparison in `breakIndex == previousSpaceIndex`
 		var spaceIndex = text.indexOf (" ");
 		var breakIndex = getLineBreakIndex ();
-		
+		var rangeIsValid = true;
+
 		var offsetX = 2.0;
 		var offsetY = 2.0;
 		var textIndex = 0;
@@ -1058,9 +1059,9 @@ class TextEngine {
 				#end
 				
 				font = getFontInstance (currentFormat);
-				
+				rangeIsValid = true;
 			}
-			
+			rangeIsValid = false;
 		}
 		
 		#if !js inline #end function setFormattedPositions (startIndex:Int, endIndex:Int) {
@@ -1080,7 +1081,7 @@ class TextEngine {
 				positions = [];
 				widthValue = 0;
 				
-				while (true) {
+				while (rangeIsValid) {
 					
 					if (tempIndex != tempRangeEnd) {
 						
@@ -1150,7 +1151,7 @@ class TextEngine {
 			
 				// fill in all text from start to end, including any format changes
 				
-				while (true) {
+				while (rangeIsValid) {
 					
 					var tempRangeEnd = endIndex < formatRange.end ? endIndex : formatRange.end;
 					
