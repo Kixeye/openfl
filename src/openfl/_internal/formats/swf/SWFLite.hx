@@ -24,6 +24,7 @@ import openfl.Assets;
 	public var library:SWFLiteLibrary;
 	public var root:SpriteSymbol;
 	public var symbols:Map<Int, SWFSymbol>;
+	public var symbolsByClassName:Map<String, SWFSymbol>;
 
 	private var symbolsByClassName:Map<String, SWFSymbol>;
 
