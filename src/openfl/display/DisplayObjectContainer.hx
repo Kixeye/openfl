@@ -962,13 +962,39 @@ class DisplayObjectContainer extends InteractiveObject
 
 		if (updateChildren)
 		{
-			for (child in __children)
+			var childStack = __children.copy();
+
+			while (childStack.length > 0)
 			{
-				child.__update(transformOnly, true);
+				var child = childStack.pop();
+
+				if (child.__type == DISPLAY_OBJECT_CONTAINER)
+				{
+					child.__update(transformOnly, false);
+					for (grandChild in child.__children)
+					{
+						childStack.push(grandChild);
+					}
+				}
+				else
+				{
+					child.__update(transformOnly, true);
+				}
 			}
 		}
 	}
 
+	// @:noCompletion private override function __update(transformOnly:Bool, updateChildren:Bool):Void
+	// {
+	// 	super.__update(transformOnly, updateChildren);
+	// 	if (updateChildren)
+	// 	{
+	// 		for (child in __children)
+	// 		{
+	// 			child.__update(transformOnly, true);
+	// 		}
+	// 	}
+	// }
 	// Get & Set Methods
 	@:noCompletion private function get_numChildren():Int
 	{
