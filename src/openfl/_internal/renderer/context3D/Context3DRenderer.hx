@@ -18,6 +18,7 @@ import openfl.display.DisplayObject;
 import openfl.display.DisplayObjectContainer;
 import openfl.display.DisplayObjectRenderer;
 import openfl.display.DisplayObjectShader;
+import openfl.display.Geometry;
 import openfl.display.Graphics;
 import openfl.display.GraphicsShader;
 import openfl.display.IBitmapDrawable;
@@ -1058,6 +1059,8 @@ class Context3DRenderer extends Context3DRendererAPI
 					__renderTilemap(cast object);
 				case VIDEO:
 					__renderVideo(cast object);
+				case GEOMETRY:
+					__renderGeometry(cast object);
 				default:
 			}
 
@@ -1289,6 +1292,11 @@ class Context3DRenderer extends Context3DRendererAPI
 	private function __renderVideo(video:Video):Void
 	{
 		Context3DVideo.render(video, this);
+	}
+
+	private function __renderGeometry(geometry:Geometry):Void
+	{
+		Context3DGeometry.render(geometry, this);
 	}
 
 	private override function __resize(width:Int, height:Int):Void

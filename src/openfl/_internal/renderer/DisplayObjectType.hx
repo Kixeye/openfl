@@ -11,4 +11,5 @@ enum DisplayObjectType
 	TEXTFIELD;
 	TILEMAP;
 	VIDEO;
+	GEOMETRY;
 }
