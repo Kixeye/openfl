@@ -26,6 +26,16 @@ class Geometry extends DisplayObject
 		#end
 	}
 
+    public function clear():Void
+    {
+        __vertices = [];
+        __numVertices = 0;
+        __bounds.width = 0;
+        __bounds.height = 0;
+        __bounds.x = 0;
+        __bounds.y = 0;
+    }
+
 	public function pushVertex(x:Float, y:Float, color:Int, alpha:Float = 1.0)
 	{
 		__vertices.push(x);
