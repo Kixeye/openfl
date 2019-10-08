@@ -31,6 +31,12 @@ class Geometry extends DisplayObject
 		__bounds.height = 0;
 		__bounds.x = 0;
 		__bounds.y = 0;
+
+		if (__vertexBuffer != null)
+		{
+			__vertexBuffer.dispose();
+			__vertexBuffer = null;
+		}
 	}
 
 	public function pushVertex(x:Float, y:Float, color:Int, alpha:Float = 1.0)
