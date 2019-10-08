@@ -42,28 +42,36 @@ class Context3DGeometry
 			renderer.batcher.flush();
 
 			var vertexBuffer = geometry.__vertexBuffer;
-			var shader = Geometry.__geomShader;
 			context.setScissorRectangle(null);
 			renderer.__setBlendMode(geometry.blendMode);
 
+			var shader = Geometry.__geomShader;
+
+			var colorTransform = geometry.__worldColorTransform;
+			if (colorTransform != null && !colorTransform.__isDefault(true))
+			{
+				colorTransform.__setArrays(shader.data.uColorMultiplier.value, shader.data.uColorOffset.value);
+			}
+			else
+			{
+				shader.data.uColorMultiplier.value[0] = 1;
+				shader.data.uColorMultiplier.value[1] = 1;
+				shader.data.uColorMultiplier.value[2] = 1;
+				shader.data.uColorMultiplier.value[3] = geometry.__worldAlpha;
+
+				shader.data.uColorOffset.value[0] = 0;
+				shader.data.uColorOffset.value[1] = 0;
+				shader.data.uColorOffset.value[2] = 0;
+				shader.data.uColorOffset.value[3] = 0;
+			}
+
 			renderer.setShader(shader);
-
-			// TODO: use color transform values
-			// shader.uColorMultiplier.value[0] = 1;
-			// shader.uColorMultiplier.value[1] = 1;
-			// shader.uColorMultiplier.value[2] = 1;
-			// shader.uColorMultiplier.value[3] = 1;
-
-			// shader.uColorOffset.value[0] = 0;
-			// shader.uColorOffset.value[1] = 0;
-			// shader.uColorOffset.value[2] = 0;
-			// shader.uColorOffset.value[3] = 0;
 
 			renderer.applyMatrix(renderer.__getMatrix(geometry.__renderTransform, AUTO));
 			renderer.updateShader();
 
 			context.setVertexBufferAt(shader.__position.index, vertexBuffer, 0, FLOAT_2);
-			context.setVertexBufferAt(shader.aColor.index, vertexBuffer, 2, FLOAT_4);
+			context.setVertexBufferAt(shader.data.aColor.index, vertexBuffer, 2, FLOAT_4);
 
 			context.__drawTriangles(0, geometry.__numVertices);
 
