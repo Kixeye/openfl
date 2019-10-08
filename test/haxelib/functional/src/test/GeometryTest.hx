@@ -20,7 +20,7 @@ class GeometryTest extends FunctionalTest
 		content = new Sprite();
 		content.addEventListener(Event.ENTER_FRAME, update);
 
-		var geom:Geometry = new Geometry();
+		var geom = new Geometry();
 		geom.pushVertex(0, 0, 0xFF0000, 0.5);
 		geom.pushVertex(100, 0, 0x00FF00, 1.0);
 		geom.pushVertex(100, 100, 0x0000FF, 0.8);
@@ -37,5 +37,9 @@ class GeometryTest extends FunctionalTest
 		content = null;
 	}
 
-	private function update(e:Event):Void {}
+	private function update(e:Event):Void
+	{
+		var sinT = Math.sin(Timer.stamp()) * 0.5 + 0.5;
+		content.alpha = sinT;
+	}
 }

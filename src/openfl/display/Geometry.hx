@@ -1,6 +1,5 @@
 package openfl.display;
 
-#if !flash
 import openfl.display3D.VertexBuffer3D;
 import openfl.geom.Matrix;
 import openfl.geom.Rectangle;
@@ -21,9 +20,7 @@ class Geometry extends DisplayObject
 	public function new()
 	{
 		super();
-		#if !flash
 		__type = GEOMETRY;
-		#end
 	}
 
     public function clear():Void
@@ -97,7 +94,6 @@ private class GeomShader extends Shader
 		attribute vec4 aColor;
 
 		uniform mat4 openfl_Matrix;
-
 		varying vec4 vColor;
 
 		void main(void) {
@@ -106,17 +102,18 @@ private class GeomShader extends Shader
 		}
 	")
 	@:glFragmentSource("
-		// uniform vec4 uColorMultiplier;
-		// uniform vec4 uColorOffset;
+		uniform vec4 uColorMultiplier;
+		uniform vec4 uColorOffset;
 		varying vec4 vColor;
 
 		void main(void) {
-			gl_FragColor = vColor; // * uColorMultiplier + uColorOffset;
+			gl_FragColor = vColor * uColorMultiplier + uColorOffset;
 		}
 	")
 	public function new()
 	{
 		super();
+		data.uColorMultiplier.value = [1, 1, 1, 1];
+		data.uColorOffset.value = [1, 1, 1, 1];
 	}
 }
-#end
