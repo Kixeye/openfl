@@ -47,17 +47,26 @@ class Context3DGeometry
 
 			var shader = Geometry.__geomShader;
 
+			var alpha:Float = geometry.__worldAlpha;
 			var colorTransform = geometry.__worldColorTransform;
 			if (colorTransform != null && !colorTransform.__isDefault(true))
 			{
-				colorTransform.__setArrays(shader.data.uColorMultiplier.value, shader.data.uColorOffset.value);
+				shader.data.uColorMultiplier.value[0] = colorTransform.redMultiplier;
+				shader.data.uColorMultiplier.value[1] = colorTransform.greenMultiplier;
+				shader.data.uColorMultiplier.value[2] = colorTransform.blueMultiplier;
+				shader.data.uColorMultiplier.value[3] = colorTransform.alphaMultiplier * alpha;
+
+				shader.data.uColorOffset.value[0] = colorTransform.redOffset;
+				shader.data.uColorOffset.value[1] = colorTransform.greenOffset;
+				shader.data.uColorOffset.value[2] = colorTransform.blueOffset;
+				shader.data.uColorOffset.value[3] = colorTransform.alphaOffset * alpha;
 			}
 			else
 			{
 				shader.data.uColorMultiplier.value[0] = 1;
 				shader.data.uColorMultiplier.value[1] = 1;
 				shader.data.uColorMultiplier.value[2] = 1;
-				shader.data.uColorMultiplier.value[3] = geometry.__worldAlpha;
+				shader.data.uColorMultiplier.value[3] = alpha;
 
 				shader.data.uColorOffset.value[0] = 0;
 				shader.data.uColorOffset.value[1] = 0;
