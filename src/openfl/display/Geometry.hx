@@ -21,6 +21,7 @@ class Geometry extends DisplayObject
 	{
 		super();
 		__type = GEOMETRY;
+		__blendMode = NORMAL;
 	}
 
     public function clear():Void
@@ -107,7 +108,8 @@ private class GeomShader extends Shader
 		varying vec4 vColor;
 
 		void main(void) {
-			gl_FragColor = vColor * uColorMultiplier + uColorOffset;
+			vec4 color = clamp(vColor * uColorMultiplier + uColorOffset, 0.0, 1.0);
+			gl_FragColor = vec4(color.rgb * color.a, color.a);
 		}
 	")
 	public function new()
