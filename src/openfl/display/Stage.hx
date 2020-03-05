@@ -1178,13 +1178,7 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 	{
 		#if (lime && !display)
 		#if openfl_html5
-		var pixelRatio = 1;
-
-		if (window.scale > 1)
-		{
-			// TODO: Does this check work?
-			pixelRatio = untyped window.devicePixelRatio || 1;
-		}
+		var pixelRatio:Float = window.scale;
 		#end
 
 		var windowWidth = Std.int(window.width * window.scale);
@@ -1200,9 +1194,9 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 				context3D.present();
 				if (BitmapData.__hardwareRenderer == null)
 				{
-					BitmapData.__hardwareRenderer = new Context3DRenderer(context3D);
+					BitmapData.__hardwareRenderer = new Context3DRenderer(context3D, null, pixelRatio);
 				}
-				__renderer = new Context3DRenderer(context3D);
+				__renderer = new Context3DRenderer(context3D, null, pixelRatio);
 				#end
 				#end
 
@@ -2864,8 +2858,8 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 		var windowHeight = Std.int(window.height * window.scale);
 
 		#if openfl_html5
-		__logicalWidth = windowWidth;
-		__logicalHeight = windowHeight;
+		__logicalWidth = Std.int(window.width);
+		__logicalHeight = Std.int(window.height);
 		#end
 
 		__displayMatrix.identity();

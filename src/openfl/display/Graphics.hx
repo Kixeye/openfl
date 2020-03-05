@@ -1847,7 +1847,7 @@ import openfl._internal.renderer.cairo.CairoGraphics;
 		}
 	}
 
-	@:noCompletion private function __update(displayMatrix:Matrix):Void
+	@:noCompletion private function __update(displayMatrix:Matrix, pixelRatio:Float = 1.0):Void
 	{
 		if (__bounds == null || __bounds.width <= 0 || __bounds.height <= 0) return;
 
@@ -1899,6 +1899,9 @@ import openfl._internal.renderer.cairo.CairoGraphics;
 				scaleY *= Math.sqrt(displayMatrix.c * displayMatrix.c + displayMatrix.d * displayMatrix.d);
 			}
 		}
+
+		scaleX *= pixelRatio;
+		scaleY *= pixelRatio;
 
 		#if openfl_disable_graphics_upscaling
 		if (scaleX > 1) scaleX = 1;

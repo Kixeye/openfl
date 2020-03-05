@@ -88,6 +88,8 @@ class Context3DRenderer extends Context3DRendererAPI
 	private static var __scissorRectangle:Rectangle = new Rectangle();
 	private static var __textureSizeValue:Array<Float> = [0, 0];
 
+	public var pixelRatio(default, null):Float = 1.0;
+
 	public var batcher:BatchRenderer = null;
 	public var context3D:Context3D;
 
@@ -127,9 +129,10 @@ class Context3DRenderer extends Context3DRendererAPI
 	private var __values:Array<Float>;
 	private var __width:Int;
 
-	private function new(context:Context3D, defaultRenderTarget:BitmapData = null)
+	private function new(context:Context3D, defaultRenderTarget:BitmapData = null, pixelRatio:Float)
 	{
 		super(context);
+		this.pixelRatio = pixelRatio;
 
 		__init(context, defaultRenderTarget);
 
@@ -190,7 +193,7 @@ class Context3DRenderer extends Context3DRendererAPI
 		{
 			__childRendererPool = new ObjectPool<Context3DRenderer>(function()
 			{
-				var renderer = new Context3DRenderer(context3D, null);
+				var renderer = new Context3DRenderer(context3D, null, pixelRatio);
 				renderer.__worldTransform = new Matrix();
 				renderer.__worldColorTransform = new ColorTransform();
 				return renderer;

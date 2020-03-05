@@ -24,7 +24,7 @@ class CanvasRenderer extends DisplayObjectRenderer
 	/**
 		The active pixel ratio used during rendering
 	**/
-	public var pixelRatio(default, null):Float = 1;
+	public var pixelRatio(default, null):Float = 1.0;
 
 	@:noCompletion private function new(context:#if lime Canvas2DRenderContext #else Dynamic #end)
 	{

@@ -29,6 +29,7 @@ class CanvasTextField
 		var textEngine = textField.__textEngine;
 		var bounds = (textEngine.background || textEngine.border) ? textEngine.bounds : textEngine.textBounds;
 		var graphics = textField.__graphics;
+		var contentsScaleFactor = (textField.stage != null) ? textField.stage.contentsScaleFactor : 1.0;
 
 		if (textField.__dirty)
 		{
@@ -42,7 +43,7 @@ class CanvasTextField
 			graphics.__bounds.copyFrom(bounds);
 		}
 
-		graphics.__update(renderer.__worldTransform);
+		graphics.__update(renderer.__worldTransform, contentsScaleFactor);
 
 		if (textField.__dirty || graphics.__softwareDirty)
 		{

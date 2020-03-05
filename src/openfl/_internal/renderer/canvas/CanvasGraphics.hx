@@ -1133,7 +1133,7 @@ class CanvasGraphics
 	public static function render(graphics:Graphics, renderer:CanvasRenderer):Void
 	{
 		#if openfl_html5
-		graphics.__update(renderer.__worldTransform);
+		graphics.__update(renderer.__worldTransform, renderer.pixelRatio);
 
 		if (graphics.__softwareDirty)
 		{

@@ -26,6 +26,8 @@ import openfl._internal.renderer.context3D.stats.DrawCallContext;
 @SuppressWarnings("checkstyle:FieldDocComment")
 class BatchRenderer
 {
+	public var pixelRatio:Float = 1.0;
+
 	private var gl:WebGLRenderingContext;
 	private var renderer:Context3DRenderer;
 
@@ -52,6 +54,7 @@ class BatchRenderer
 
 	public function new(renderer:Context3DRenderer, maxQuads:Int)
 	{
+		this.pixelRatio = renderer.pixelRatio;
 		this.renderer = renderer;
 		this.gl = renderer.gl;
 
