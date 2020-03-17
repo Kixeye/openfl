@@ -645,7 +645,7 @@ class Tools
 
 	private static function processFile(sourcePath:String, targetPath:String, prefix:String = null):Bool
 	{
-		#if false // TODO: Make default
+		#if true // TODO: Make default
 		if (targetPath == null)
 		{
 			targetPath = Path.withoutExtension(sourcePath) + ".zip";
