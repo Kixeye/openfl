@@ -1631,10 +1631,11 @@ class BitmapData implements IBitmapDrawable
 
 		if (object != null && scale9Grid != null)
 		{
+			var pixelRatio = object.stage != null ? object.stage.contentsScaleFactor : 1.0;
 			var vertexBufferWidth = object.width;
 			var vertexBufferHeight = object.height;
-			var vertexBufferScaleX = object.scaleX / batcher.pixelRatio;
-			var vertexBufferScaleY = object.scaleY / batcher.pixelRatio;
+			var vertexBufferScaleX = object.scaleX / pixelRatio;
+			var vertexBufferScaleY = object.scaleY / pixelRatio;
 
 			var centerX = scale9Grid.width;
 			var centerY = scale9Grid.height;

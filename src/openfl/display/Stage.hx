@@ -1177,9 +1177,7 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 	@:noCompletion private function __createRenderer():Void
 	{
 		#if (lime && !display)
-		#if openfl_html5
 		var pixelRatio:Float = window.scale;
-		#end
 
 		var windowWidth = Std.int(window.width * window.scale);
 		var windowHeight = Std.int(window.height * window.scale);
@@ -1194,9 +1192,9 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 				context3D.present();
 				if (BitmapData.__hardwareRenderer == null)
 				{
-					BitmapData.__hardwareRenderer = new Context3DRenderer(context3D, null, pixelRatio);
+					BitmapData.__hardwareRenderer = new Context3DRenderer(context3D);
 				}
-				__renderer = new Context3DRenderer(context3D, null, pixelRatio);
+				__renderer = new Context3DRenderer(context3D);
 				#end
 				#end
 
