@@ -198,7 +198,7 @@ class BatchRenderer
 		for (i in 0...__batch.numTextures)
 		{
 			__samplers[i].input = __batch.textures[i];
-			__samplers[i].filter = LINEAR;
+			__samplers[i].filter = NEAREST;
 		}
 		for (i in __batch.numTextures...__maxTextures)
 		{
