@@ -2,6 +2,7 @@ package openfl.filters;
 
 #if !flash
 import openfl._internal.backend.lime.ImageDataUtil;
+import openfl._internal.renderer.context3D.Context3DRenderer;
 import openfl.display.BitmapData;
 import openfl.display.DisplayObjectRenderer;
 import openfl.display.Shader;
@@ -273,6 +274,7 @@ import openfl.geom.Rectangle;
 			return __invertAlphaShader;
 		}
 
+		var pixelRatio = Context3DRenderer.pixelRatio;
 		var blurPass = pass - (__inner ? 1 : 0);
 		var numBlurPasses = __horizontalPasses + __verticalPasses;
 
@@ -282,14 +284,14 @@ import openfl.geom.Rectangle;
 			if (blurPass < __horizontalPasses)
 			{
 				var scale = Math.pow(0.5, blurPass >> 1) * 0.5;
-				shader.uRadius.value[0] = blurX * scale;
+				shader.uRadius.value[0] = blurX * scale * pixelRatio;
 				shader.uRadius.value[1] = 0;
 			}
 			else
 			{
 				var scale = Math.pow(0.5, (blurPass - __horizontalPasses) >> 1) * 0.5;
 				shader.uRadius.value[0] = 0;
-				shader.uRadius.value[1] = blurY * scale;
+				shader.uRadius.value[1] = blurY * scale * pixelRatio;
 			}
 			shader.uColor.value[0] = ((color >> 16) & 0xFF) / 255;
 			shader.uColor.value[1] = ((color >> 8) & 0xFF) / 255;
@@ -337,17 +339,21 @@ import openfl.geom.Rectangle;
 
 	@:noCompletion private function __updateSize():Void
 	{
-		__leftExtension = (__blurX > 0 ? Math.ceil(__blurX * 1.5) : 0);
+		var blurX = __blurX * Context3DRenderer.pixelRatio;
+		var blurY = __blurY * Context3DRenderer.pixelRatio;
+		__leftExtension = (blurX > 0 ? Math.ceil(blurX * 1.5) : 0);
 		__rightExtension = __leftExtension;
-		__topExtension = (__blurY > 0 ? Math.ceil(__blurY * 1.5) : 0);
+		__topExtension = (blurY > 0 ? Math.ceil(blurY * 1.5) : 0);
 		__bottomExtension = __topExtension;
 		__calculateNumShaderPasses();
 	}
 
 	@:noCompletion private function __calculateNumShaderPasses():Void
 	{
-		__horizontalPasses = (__blurX <= 0) ? 0 : Math.round(__blurX * (__quality / 4)) + 1;
-		__verticalPasses = (__blurY <= 0) ? 0 : Math.round(__blurY * (__quality / 4)) + 1;
+		var blurX = __blurX * Context3DRenderer.pixelRatio;
+		var blurY = __blurY * Context3DRenderer.pixelRatio;
+		__horizontalPasses = (blurX <= 0) ? 0 : Math.round(blurX * (__quality / 4)) + 1;
+		__verticalPasses = (blurY <= 0) ? 0 : Math.round(blurY * (__quality / 4)) + 1;
 		__numShaderPasses = __horizontalPasses + __verticalPasses + (__inner ? 2 : 1);
 	}
 

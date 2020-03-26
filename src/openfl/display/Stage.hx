@@ -1195,6 +1195,7 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 					BitmapData.__hardwareRenderer = new Context3DRenderer(context3D);
 				}
 				__renderer = new Context3DRenderer(context3D);
+				Context3DRenderer.pixelRatio = pixelRatio;
 				#end
 				#end
 

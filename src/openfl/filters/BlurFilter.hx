@@ -3,6 +3,7 @@ package openfl.filters;
 import haxe.Timer;
 #if !flash
 import openfl._internal.backend.lime.ImageDataUtil;
+import openfl._internal.renderer.context3D.Context3DRenderer;
 import openfl.display.BitmapData;
 import openfl.display.DisplayObjectRenderer;
 import openfl.display.Shader;
@@ -188,17 +189,18 @@ import openfl.geom.Rectangle;
 	@:noCompletion private override function __initShader(renderer:DisplayObjectRenderer, pass:Int, sourceBitmapData:BitmapData):Shader
 	{
 		#if !macro
+		var pixelRatio = Context3DRenderer.pixelRatio;
 		if (pass < __horizontalPasses)
 		{
 			var scale = Math.pow(0.5, pass >> 1);
-			__blurShader.uRadius.value[0] = blurX * scale;
+			__blurShader.uRadius.value[0] = blurX * scale * pixelRatio;
 			__blurShader.uRadius.value[1] = 0;
 		}
 		else
 		{
 			var scale = Math.pow(0.5, (pass - __horizontalPasses) >> 1);
 			__blurShader.uRadius.value[0] = 0;
-			__blurShader.uRadius.value[1] = blurY * scale;
+			__blurShader.uRadius.value[1] = blurY * scale * pixelRatio;
 		}
 		#end
 
@@ -217,7 +219,8 @@ import openfl.geom.Rectangle;
 		{
 			__blurX = value;
 			__renderDirty = true;
-			__leftExtension = (value > 0 ? Math.ceil(value) : 0);
+			var blurX = __blurX * Context3DRenderer.pixelRatio;
+			__leftExtension = (blurX > 0 ? Math.ceil(blurX) : 0);
 			__rightExtension = __leftExtension;
 		}
 		return value;
@@ -233,8 +236,9 @@ import openfl.geom.Rectangle;
 		if (value != __blurY)
 		{
 			__blurY = value;
+			var blurY = __blurY * Context3DRenderer.pixelRatio;
 			__renderDirty = true;
-			__topExtension = (value > 0 ? Math.ceil(value) : 0);
+			__topExtension = (blurY > 0 ? Math.ceil(blurY) : 0);
 			__bottomExtension = __topExtension;
 		}
 		return value;
@@ -247,10 +251,11 @@ import openfl.geom.Rectangle;
 
 	@:noCompletion private function set_quality(value:Int):Int
 	{
-		// TODO: Quality effect with fewer passes?
+		var blurX = __blurX * Context3DRenderer.pixelRatio;
+		var blurY = __blurY * Context3DRenderer.pixelRatio;
 
-		__horizontalPasses = (__blurX <= 0) ? 0 : Math.round(__blurX * (value / 4)) + 1;
-		__verticalPasses = (__blurY <= 0) ? 0 : Math.round(__blurY * (value / 4)) + 1;
+		__horizontalPasses = (blurX <= 0) ? 0 : Math.round(blurX * (value / 4)) + 1;
+		__verticalPasses = (blurY <= 0) ? 0 : Math.round(blurY * (value / 4)) + 1;
 
 		__numShaderPasses = __horizontalPasses + __verticalPasses;
 

@@ -34,6 +34,7 @@ class BitmapFilter
 	@:noCompletion private var __shaderBlendMode:BlendMode;
 	@:noCompletion private var __smooth:Bool;
 	@:noCompletion private var __topExtension:Int;
+	@:noCompletion private var __pixelRatio:Float;
 
 	public function new()
 	{

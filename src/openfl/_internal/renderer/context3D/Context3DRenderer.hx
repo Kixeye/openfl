@@ -77,6 +77,8 @@ import openfl._internal.renderer.context3D.stats.DrawCallContext;
 @SuppressWarnings("checkstyle:FieldDocComment")
 class Context3DRenderer extends Context3DRendererAPI
 {
+	public static var pixelRatio:Float = 1.0;
+
 	private static var __alphaValue:Array<Float> = [1];
 	private static var __childRendererPool:ObjectPool<Context3DRenderer>;
 	private static var __colorMultipliersValue:Array<Float> = [0, 0, 0, 0];
@@ -620,6 +622,7 @@ class Context3DRenderer extends Context3DRendererAPI
 		__matrix[5] = _matrix.d;
 		__matrix[12] = _matrix.tx;
 		__matrix[13] = _matrix.ty;
+
 		__matrix.append(__flipped ? __projectionFlipped : __projection);
 
 		for (i in 0...16)
@@ -1565,6 +1568,7 @@ class Context3DRenderer extends Context3DRendererAPI
 
 			// TODO: Handle renderTransform (for scrollRect, displayMatrix changes, etc)
 			var updateTransform = (needRender || !object.__cacheBitmap.__worldTransform.equals(object.__worldTransform));
+			var pixelRatio = Context3DRenderer.pixelRatio;
 
 			object.__cacheBitmapMatrix.copyFrom(bitmapMatrix);
 			object.__cacheBitmapMatrix.tx = 0;
@@ -1576,14 +1580,14 @@ class Context3DRenderer extends Context3DRendererAPI
 			var filterWidth = 0, filterHeight = 0;
 			var offsetX = 0., offsetY = 0.;
 
-			if (updateTransform && hasFilters)
+			if (updateTransform)
 			{
 				rect = Rectangle.__pool.get();
 
 				object.__getFilterBounds(rect, object.__cacheBitmapMatrix);
 
-				filterWidth = Math.ceil(rect.width);
-				filterHeight = Math.ceil(rect.height);
+				filterWidth = Math.ceil(rect.width * pixelRatio);
+				filterHeight = Math.ceil(rect.height * pixelRatio);
 
 				offsetX = rect.x > 0 ? Math.ceil(rect.x) : Math.floor(rect.x);
 				offsetY = rect.y > 0 ? Math.ceil(rect.y) : Math.floor(rect.y);
@@ -1658,6 +1662,7 @@ class Context3DRenderer extends Context3DRendererAPI
 				if (bitmapMatrix == object.__renderTransform)
 				{
 					object.__cacheBitmap.__renderTransform.identity();
+					object.__cacheBitmap.__renderTransform.scale(1 / pixelRatio, 1 / pixelRatio);
 					object.__cacheBitmap.__renderTransform.tx = object.__renderTransform.tx + offsetX;
 					object.__cacheBitmap.__renderTransform.ty = object.__renderTransform.ty + offsetY;
 				}
@@ -1694,6 +1699,7 @@ class Context3DRenderer extends Context3DRendererAPI
 				childRenderer.__worldTransform.concat(object.__cacheBitmapMatrix);
 				childRenderer.__worldTransform.tx -= offsetX;
 				childRenderer.__worldTransform.ty -= offsetY;
+				childRenderer.__worldTransform.scale(pixelRatio, pixelRatio);
 
 				childRenderer.__worldColorTransform.__copyFrom(colorTransform);
 				childRenderer.__worldColorTransform.__invert();
@@ -1717,72 +1723,7 @@ class Context3DRenderer extends Context3DRendererAPI
 
 				if (hasFilters)
 				{
-					var needCopyOfOriginal = false;
-
-					for (filter in object.__filters)
-					{
-						if (filter.__preserveObject)
-						{
-							needCopyOfOriginal = true;
-						}
-					}
-
-					var cacheRenderer = BitmapData.__hardwareRenderer;
-					BitmapData.__hardwareRenderer = childRenderer;
-
-					var bitmap = context3D.__bitmapDataPool.get(filterWidth, filterHeight);
-					var bitmap2 = context3D.__bitmapDataPool.get(filterWidth, filterHeight);
-					var bitmap3 = needCopyOfOriginal ? context3D.__bitmapDataPool.get(filterWidth, filterHeight) : null;
-
-					bitmap.__setUVRect(context3D, 0, 0, filterWidth, filterHeight);
-					bitmap2.__setUVRect(context3D, 0, 0, filterWidth, filterHeight);
-					if (bitmap3 != null) bitmap3.__setUVRect(context3D, 0, 0, filterWidth, filterHeight);
-
-					childRenderer.__setBlendMode(NORMAL);
-					childRenderer.__worldAlpha = 1;
-					childRenderer.__worldTransform.identity();
-					childRenderer.__worldColorTransform.__identity();
-
-					var shader, cacheBitmap, firstPass = true;
-
-					for (filter in object.__filters)
-					{
-						if (filter.__preserveObject)
-						{
-							childRenderer.__setRenderTarget(bitmap3);
-							childRenderer.__renderFilterPass(firstPass ? object.__cacheBitmapDataTexture : bitmap, childRenderer.__defaultDisplayShader,
-								filter.__smooth);
-						}
-
-						for (i in 0...filter.__numShaderPasses)
-						{
-							shader = filter.__initShader(childRenderer, i, filter.__preserveObject ? bitmap3 : null);
-							childRenderer.__setBlendMode(filter.__shaderBlendMode);
-							childRenderer.__setRenderTarget(bitmap2);
-							childRenderer.__renderFilterPass(firstPass ? object.__cacheBitmapDataTexture : bitmap, shader, filter.__smooth);
-
-							firstPass = false;
-							cacheBitmap = bitmap;
-							bitmap = bitmap2;
-							bitmap2 = cacheBitmap;
-						}
-
-						filter.__renderDirty = false;
-					}
-
-					if (bitmap != null)
-					{
-						object.__cacheBitmapDataTexture.fillRect(object.__cacheBitmapDataTexture.rect, 0);
-						childRenderer.__setRenderTarget(object.__cacheBitmapDataTexture);
-						childRenderer.__renderFilterPass(bitmap, childRenderer.__defaultDisplayShader, true);
-						// object.__cacheBitmap.bitmapData = object.__cacheBitmapData;
-					}
-
-					context3D.__bitmapDataPool.release(bitmap);
-					context3D.__bitmapDataPool.release(bitmap2);
-					if (bitmap3 != null) context3D.__bitmapDataPool.release(bitmap3);
-
-					BitmapData.__hardwareRenderer = cacheRenderer;
+					__renderFilters(object, filterWidth, filterHeight, childRenderer);
 				}
 
 				__blendMode = NORMAL;
@@ -1823,6 +1764,76 @@ class Context3DRenderer extends Context3DRendererAPI
 		}
 
 		return updated;
+	}
+
+	private function __renderFilters(object:DisplayObject, filterWidth:Int, filterHeight:Int, childRenderer:Context3DRenderer):Void
+	{
+		var needCopyOfOriginal = false;
+
+		for (filter in object.__filters)
+		{
+			if (filter.__preserveObject)
+			{
+				needCopyOfOriginal = true;
+			}
+		}
+
+		var cacheRenderer = BitmapData.__hardwareRenderer;
+		BitmapData.__hardwareRenderer = childRenderer;
+
+		var bitmap = context3D.__bitmapDataPool.get(filterWidth, filterHeight);
+		var bitmap2 = context3D.__bitmapDataPool.get(filterWidth, filterHeight);
+		var bitmap3 = needCopyOfOriginal ? context3D.__bitmapDataPool.get(filterWidth, filterHeight) : null;
+
+		bitmap.__setUVRect(context3D, 0, 0, filterWidth, filterHeight);
+		bitmap2.__setUVRect(context3D, 0, 0, filterWidth, filterHeight);
+		if (bitmap3 != null) bitmap3.__setUVRect(context3D, 0, 0, filterWidth, filterHeight);
+
+		childRenderer.__setBlendMode(NORMAL);
+		childRenderer.__worldAlpha = 1;
+		childRenderer.__worldTransform.identity();
+		childRenderer.__worldColorTransform.__identity();
+
+		var shader, cacheBitmap, firstPass = true;
+
+		for (filter in object.__filters)
+		{
+			if (filter.__preserveObject)
+			{
+				childRenderer.__setRenderTarget(bitmap3);
+				childRenderer.__renderFilterPass(firstPass ? object.__cacheBitmapDataTexture : bitmap, childRenderer.__defaultDisplayShader,
+					filter.__smooth);
+			}
+
+			for (i in 0...filter.__numShaderPasses)
+			{
+				shader = filter.__initShader(childRenderer, i, filter.__preserveObject ? bitmap3 : null);
+				childRenderer.__setBlendMode(filter.__shaderBlendMode);
+				childRenderer.__setRenderTarget(bitmap2);
+				childRenderer.__renderFilterPass(firstPass ? object.__cacheBitmapDataTexture : bitmap, shader, filter.__smooth);
+
+				firstPass = false;
+				cacheBitmap = bitmap;
+				bitmap = bitmap2;
+				bitmap2 = cacheBitmap;
+			}
+
+			filter.__renderDirty = false;
+		}
+
+		if (bitmap != null)
+		{
+			object.__cacheBitmapDataTexture.fillRect(object.__cacheBitmapDataTexture.rect, 0);
+			childRenderer.__setRenderTarget(object.__cacheBitmapDataTexture);
+			childRenderer.__renderFilterPass(bitmap, childRenderer.__defaultDisplayShader, true);
+			// object.__cacheBitmap.bitmapData = object.__cacheBitmapData;
+		}
+
+		context3D.__bitmapDataPool.release(bitmap);
+		context3D.__bitmapDataPool.release(bitmap2);
+		if (bitmap3 != null) context3D.__bitmapDataPool.release(bitmap3);
+
+		BitmapData.__hardwareRenderer = cacheRenderer;
 	}
 
 	private function __updateShaderBuffer(bufferOffset:Int):Void

@@ -1631,7 +1631,7 @@ class BitmapData implements IBitmapDrawable
 
 		if (object != null && scale9Grid != null)
 		{
-			var pixelRatio = object.stage != null ? object.stage.contentsScaleFactor : 1.0;
+			var pixelRatio = Context3DRenderer.pixelRatio;
 			var vertexBufferWidth = object.width;
 			var vertexBufferHeight = object.height;
 			var vertexBufferScaleX = object.scaleX / pixelRatio;
@@ -1652,8 +1652,8 @@ class BitmapData implements IBitmapDrawable
 				var uvCenterY = scale9Grid.height / vertexBufferHeight;
 				var uvRight = right / width;
 				var uvBottom = bottom / height;
-				var uvOffsetU = 0.5 / vertexBufferWidth;
-				var uvOffsetV = 0.5 / vertexBufferHeight;
+				var uvOffsetU = (pixelRatio * 0.5) / vertexBufferWidth;
+				var uvOffsetV = (pixelRatio * 0.5) / vertexBufferHeight;
 
 				var renderedLeft = left / vertexBufferScaleX;
 				var renderedTop = top / vertexBufferScaleY;
@@ -1802,6 +1802,7 @@ class BitmapData implements IBitmapDrawable
 			// [ colorTransform.redOffset / 255, colorTransform.greenOffset / 255, colorTransform.blueOffset / 255, colorTransform.alphaOffset / 255 ]
 
 			#if lime
+			var pixelRatio = 1.0; //Context3DRenderer.pixelRatio;
 			__vertexBufferContext = context.__context;
 			__vertexBuffer = null;
 
@@ -1809,8 +1810,8 @@ class BitmapData implements IBitmapDrawable
 			{
 				__vertexBufferWidth = targetObject.width;
 				__vertexBufferHeight = targetObject.height;
-				__vertexBufferScaleX = targetObject.scaleX;
-				__vertexBufferScaleY = targetObject.scaleY;
+				__vertexBufferScaleX = targetObject.scaleX / pixelRatio;
+				__vertexBufferScaleY = targetObject.scaleY / pixelRatio;
 			}
 
 			if (scale9Grid != null && targetObject != null)
@@ -1820,8 +1821,8 @@ class BitmapData implements IBitmapDrawable
 
 				__vertexBufferWidth = targetObject.width;
 				__vertexBufferHeight = targetObject.height;
-				__vertexBufferScaleX = targetObject.scaleX;
-				__vertexBufferScaleY = targetObject.scaleY;
+				__vertexBufferScaleX = targetObject.scaleX / pixelRatio;
+				__vertexBufferScaleY = targetObject.scaleY / pixelRatio;
 
 				var centerX = scale9Grid.width;
 				var centerY = scale9Grid.height;
@@ -1840,13 +1841,13 @@ class BitmapData implements IBitmapDrawable
 					var uvCenterY = scale9Grid.height / __vertexBufferHeight;
 					var uvRight = right / width;
 					var uvBottom = bottom / height;
-					var uvOffsetU = 0.5 / __vertexBufferWidth;
-					var uvOffsetV = 0.5 / __vertexBufferHeight;
+					var uvOffsetU = (pixelRatio * 0.5) / __vertexBufferWidth;
+					var uvOffsetV = (pixelRatio * 0.5) / __vertexBufferHeight;
 
-					var renderedLeft = left / targetObject.scaleX;
-					var renderedTop = top / targetObject.scaleY;
-					var renderedRight = right / targetObject.scaleX;
-					var renderedBottom = bottom / targetObject.scaleY;
+					var renderedLeft = left / __vertexBufferScaleX;
+					var renderedTop = top / __vertexBufferScaleY;
+					var renderedRight = right / __vertexBufferScaleX;
+					var renderedBottom = bottom / __vertexBufferScaleY;
 					var renderedCenterX = (width - renderedLeft - renderedRight);
 					var renderedCenterY = (height - renderedTop - renderedBottom);
 
@@ -1898,11 +1899,11 @@ class BitmapData implements IBitmapDrawable
 					var uvCenterY = centerY / height;
 					var uvBottom = bottom / height;
 
-					var renderedTop = top / targetObject.scaleY;
-					var renderedBottom = bottom / targetObject.scaleY;
-					var renderedCenterY = (targetObject.height / targetObject.scaleY) - renderedTop - renderedBottom;
+					var renderedTop = top / __vertexBufferScaleY;
+					var renderedBottom = bottom / __vertexBufferScaleY;
+					var renderedCenterY = (targetObject.height / __vertexBufferScaleY) - renderedTop - renderedBottom;
 
-					var renderedWidth = targetObject.width / targetObject.scaleX;
+					var renderedWidth = targetObject.width / __vertexBufferScaleX;
 
 					// 3 ——— 2
 					// |  /  |
@@ -1955,11 +1956,11 @@ class BitmapData implements IBitmapDrawable
 					var uvCenterX = centerX / width;
 					var uvRight = right / width;
 
-					var renderedLeft = left / targetObject.scaleX;
-					var renderedRight = right / targetObject.scaleX;
-					var renderedCenterX = (targetObject.width / targetObject.scaleX) - renderedLeft - renderedRight;
+					var renderedLeft = left / __vertexBufferScaleX;
+					var renderedRight = right / __vertexBufferScaleX;
+					var renderedCenterX = (targetObject.width / __vertexBufferScaleX) - renderedLeft - renderedRight;
 
-					var renderedHeight = targetObject.height / targetObject.scaleY;
+					var renderedHeight = targetObject.height / __vertexBufferScaleY;
 
 					// 3 ——— 2 ——— 5 ——— 7
 					// |  /  |  /  |  /  |

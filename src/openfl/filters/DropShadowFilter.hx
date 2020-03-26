@@ -2,6 +2,7 @@ package openfl.filters;
 
 #if !flash
 import openfl._internal.backend.lime.ImageDataUtil;
+import openfl._internal.renderer.context3D.Context3DRenderer;
 import openfl.display.BitmapData;
 import openfl.display.DisplayObjectRenderer;
 import openfl.display.Shader;
@@ -299,6 +300,7 @@ import openfl.geom.Rectangle;
 			return GlowFilter.__invertAlphaShader;
 		}
 
+		var pixelRatio = Context3DRenderer.pixelRatio;
 		var blurPass = pass - (__inner ? 1 : 0);
 		var numBlurPasses = __horizontalPasses + __verticalPasses;
 
@@ -308,14 +310,14 @@ import openfl.geom.Rectangle;
 			if (blurPass < __horizontalPasses)
 			{
 				var scale = Math.pow(0.5, blurPass >> 1) * 0.5;
-				shader.uRadius.value[0] = blurX * scale;
+				shader.uRadius.value[0] = blurX * scale * pixelRatio;
 				shader.uRadius.value[1] = 0;
 			}
 			else
 			{
 				var scale = Math.pow(0.5, (blurPass - __horizontalPasses) >> 1) * 0.5;
 				shader.uRadius.value[0] = 0;
-				shader.uRadius.value[1] = blurY * scale;
+				shader.uRadius.value[1] = blurY * scale * pixelRatio;
 			}
 			shader.uColor.value[0] = ((color >> 16) & 0xFF) / 255;
 			shader.uColor.value[1] = ((color >> 8) & 0xFF) / 255;
@@ -371,19 +373,29 @@ import openfl.geom.Rectangle;
 
 	@:noCompletion private function __updateSize():Void
 	{
+		var pixelRatio = Context3DRenderer.pixelRatio;
+		var blurX = __blurX * pixelRatio;
+		var blurY = __blurY * pixelRatio;
 		__offsetX = Std.int(__distance * Math.cos(__angle * Math.PI / 180));
 		__offsetY = Std.int(__distance * Math.sin(__angle * Math.PI / 180));
-		__topExtension = Math.ceil((__offsetY < 0 ? -__offsetY : 0) + __blurY);
-		__bottomExtension = Math.ceil((__offsetY > 0 ? __offsetY : 0) + __blurY);
-		__leftExtension = Math.ceil((__offsetX < 0 ? -__offsetX : 0) + __blurX);
-		__rightExtension = Math.ceil((__offsetX > 0 ? __offsetX : 0) + __blurX);
+
+		var offsetX = __offsetX * pixelRatio;
+		var offsetY = __offsetY * pixelRatio;
+
+		__topExtension = Math.ceil((offsetY < 0 ? -offsetY : 0) + blurY);
+		__bottomExtension = Math.ceil((offsetY > 0 ? offsetY : 0) + blurY);
+		__leftExtension = Math.ceil((offsetX < 0 ? -offsetX : 0) + blurX);
+		__rightExtension = Math.ceil((offsetX > 0 ? offsetX : 0) + blurX);
 		__calculateNumShaderPasses();
 	}
 
 	@:noCompletion private function __calculateNumShaderPasses():Void
 	{
-		__horizontalPasses = Math.round(__blurX * (__quality / 4)) + 1;
-		__verticalPasses = Math.round(__blurY * (__quality / 4)) + 1;
+		var pixelRatio = Context3DRenderer.pixelRatio;
+		var blurX = __blurX * pixelRatio;
+		var blurY = __blurY * pixelRatio;
+		__horizontalPasses = Math.round(blurX * (__quality / 4)) + 1;
+		__verticalPasses = Math.round(blurY * (__quality / 4)) + 1;
 		__numShaderPasses = __horizontalPasses + __verticalPasses + (__inner ? 2 : 1);
 	}
 
