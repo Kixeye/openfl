@@ -274,7 +274,11 @@ import openfl.geom.Rectangle;
 			return __invertAlphaShader;
 		}
 
+		#if (!macro && openfl_gl)
 		var pixelRatio = Context3DRenderer.pixelRatio;
+		#else
+		var pixelRatio = 1.0;
+		#end
 		var blurPass = pass - (__inner ? 1 : 0);
 		var numBlurPasses = __horizontalPasses + __verticalPasses;
 
@@ -339,8 +343,13 @@ import openfl.geom.Rectangle;
 
 	@:noCompletion private function __updateSize():Void
 	{
-		var blurX = __blurX * Context3DRenderer.pixelRatio;
-		var blurY = __blurY * Context3DRenderer.pixelRatio;
+		#if (!macro && openfl_gl)
+		var pixelRatio = Context3DRenderer.pixelRatio;
+		#else
+		var pixelRatio = 1.0;
+		#end
+		var blurX = __blurX * pixelRatio;
+		var blurY = __blurY * pixelRatio;
 		__leftExtension = (blurX > 0 ? Math.ceil(blurX * 1.5) : 0);
 		__rightExtension = __leftExtension;
 		__topExtension = (blurY > 0 ? Math.ceil(blurY * 1.5) : 0);
@@ -350,8 +359,13 @@ import openfl.geom.Rectangle;
 
 	@:noCompletion private function __calculateNumShaderPasses():Void
 	{
-		var blurX = __blurX * Context3DRenderer.pixelRatio;
-		var blurY = __blurY * Context3DRenderer.pixelRatio;
+		#if (!macro && openfl_gl)
+		var pixelRatio = Context3DRenderer.pixelRatio;
+		#else
+		var pixelRatio = 1.0;
+		#end
+		var blurX = __blurX * pixelRatio;
+		var blurY = __blurY * pixelRatio;
 		__horizontalPasses = (blurX <= 0) ? 0 : Math.round(blurX * (__quality / 4)) + 1;
 		__verticalPasses = (blurY <= 0) ? 0 : Math.round(blurY * (__quality / 4)) + 1;
 		__numShaderPasses = __horizontalPasses + __verticalPasses + (__inner ? 2 : 1);

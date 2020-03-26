@@ -189,7 +189,11 @@ import openfl.geom.Rectangle;
 	@:noCompletion private override function __initShader(renderer:DisplayObjectRenderer, pass:Int, sourceBitmapData:BitmapData):Shader
 	{
 		#if !macro
+		#if openfl_gl
 		var pixelRatio = Context3DRenderer.pixelRatio;
+		#else
+		var pixelRatio = 1.0;
+		#end
 		if (pass < __horizontalPasses)
 		{
 			var scale = Math.pow(0.5, pass >> 1);
@@ -217,9 +221,14 @@ import openfl.geom.Rectangle;
 	{
 		if (value != __blurX)
 		{
-			__blurX = value;
+			#if (!macro && openfl_gl)
+			var pixelRatio = Context3DRenderer.pixelRatio;
+			#else
+			var pixelRatio = 1.0;
+			#end
+				__blurX = value;
 			__renderDirty = true;
-			var blurX = __blurX * Context3DRenderer.pixelRatio;
+			var blurX = __blurX * pixelRatio;
 			__leftExtension = (blurX > 0 ? Math.ceil(blurX) : 0);
 			__rightExtension = __leftExtension;
 		}
@@ -235,8 +244,13 @@ import openfl.geom.Rectangle;
 	{
 		if (value != __blurY)
 		{
+			#if (!macro && openfl_gl)
+			var pixelRatio = Context3DRenderer.pixelRatio;
+			#else
+			var pixelRatio = 1.0;
+			#end
 			__blurY = value;
-			var blurY = __blurY * Context3DRenderer.pixelRatio;
+			var blurY = __blurY * pixelRatio;
 			__renderDirty = true;
 			__topExtension = (blurY > 0 ? Math.ceil(blurY) : 0);
 			__bottomExtension = __topExtension;
@@ -251,8 +265,14 @@ import openfl.geom.Rectangle;
 
 	@:noCompletion private function set_quality(value:Int):Int
 	{
-		var blurX = __blurX * Context3DRenderer.pixelRatio;
-		var blurY = __blurY * Context3DRenderer.pixelRatio;
+		#if (!macro && openfl_gl)
+		var pixelRatio = Context3DRenderer.pixelRatio;
+		#else
+		var pixelRatio = 1.0;
+		#end
+
+		var blurX = __blurX * pixelRatio;
+		var blurY = __blurY * pixelRatio;
 
 		__horizontalPasses = (blurX <= 0) ? 0 : Math.round(blurX * (value / 4)) + 1;
 		__verticalPasses = (blurY <= 0) ? 0 : Math.round(blurY * (value / 4)) + 1;

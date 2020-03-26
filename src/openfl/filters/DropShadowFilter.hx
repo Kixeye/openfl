@@ -299,8 +299,11 @@ import openfl.geom.Rectangle;
 		{
 			return GlowFilter.__invertAlphaShader;
 		}
-
+		#if (!macro && openfl_gl)
 		var pixelRatio = Context3DRenderer.pixelRatio;
+		#else
+		var pixelRatio = 1.0;
+		#end
 		var blurPass = pass - (__inner ? 1 : 0);
 		var numBlurPasses = __horizontalPasses + __verticalPasses;
 
@@ -373,7 +376,11 @@ import openfl.geom.Rectangle;
 
 	@:noCompletion private function __updateSize():Void
 	{
+		#if (!macro && openfl_gl)
 		var pixelRatio = Context3DRenderer.pixelRatio;
+		#else
+		var pixelRatio = 1.0;
+		#end
 		var blurX = __blurX * pixelRatio;
 		var blurY = __blurY * pixelRatio;
 		__offsetX = Std.int(__distance * Math.cos(__angle * Math.PI / 180));
@@ -391,7 +398,11 @@ import openfl.geom.Rectangle;
 
 	@:noCompletion private function __calculateNumShaderPasses():Void
 	{
+		#if (!macro && openfl_gl)
 		var pixelRatio = Context3DRenderer.pixelRatio;
+		#else
+		var pixelRatio = 1.0;
+		#end
 		var blurX = __blurX * pixelRatio;
 		var blurY = __blurY * pixelRatio;
 		__horizontalPasses = Math.round(blurX * (__quality / 4)) + 1;
