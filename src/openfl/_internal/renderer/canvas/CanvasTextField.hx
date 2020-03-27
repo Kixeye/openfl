@@ -12,7 +12,7 @@ import openfl.text.TextFieldAutoSize;
 
 #if openfl_gl
 import openfl._internal.renderer.context3D.Context3DRenderer;
-#endif
+#end
 
 @:access(openfl._internal.text.TextEngine)
 @:access(openfl.display.Graphics)
