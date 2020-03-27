@@ -10,6 +10,10 @@ import openfl.geom.Rectangle;
 import openfl.text.TextField;
 import openfl.text.TextFieldAutoSize;
 
+#if openfl_gl
+import openfl._internal.renderer.context3D.Context3DRenderer;
+#endif
+
 @:access(openfl._internal.text.TextEngine)
 @:access(openfl.display.Graphics)
 @:access(openfl.geom.Matrix)
@@ -29,7 +33,11 @@ class CanvasTextField
 		var textEngine = textField.__textEngine;
 		var bounds = (textEngine.background || textEngine.border) ? textEngine.bounds : textEngine.textBounds;
 		var graphics = textField.__graphics;
-		var pixelRatio = (textField.stage != null) ? textField.stage.contentsScaleFactor : 1.0;
+		#if openfl_gl
+		var pixelRatio = Context3DRenderer.pixelRatio;
+		#else
+		var pixelRatio = 1.0;
+		#end
 
 		if (textField.__dirty)
 		{
