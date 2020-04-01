@@ -1314,7 +1314,7 @@ class SWFLibraryExporter
 
 				var template = new Template(templateData);
 
-				var templateFile = new Asset("", Path.combine(targetPath, Path.directory(symbol.className.split(".").join("/"))) + "/" + name + ".hx",
+				var templateFile = new Asset("", Path.combine(targetPath, Path.directory(formatClassName(symbol.className).split(".").join("/"))) + "/" + name + ".hx",
 					cast AssetType.TEMPLATE);
 				templateFile.embed = false;
 				templateFile.data = template.execute(context);
