@@ -18,6 +18,7 @@ import openfl.Vector;
 import openfl._internal.backend.html5.CanvasElement;
 import openfl._internal.backend.html5.CanvasRenderingContext2D;
 import openfl._internal.renderer.canvas.CanvasGraphics;
+import openfl.text.TextField;
 #else
 import openfl._internal.backend.cairo.Cairo;
 import openfl._internal.renderer.cairo.CairoGraphics;
@@ -1966,7 +1967,14 @@ import openfl._internal.renderer.cairo.CairoGraphics;
 		if (newWidth != __width || newHeight != __height)
 		{
 			#if !openfl_disable_graphics_upscaling
-			__dirty = true;
+			if (Std.is(__owner, TextField))
+			{
+				__hardwareDirty = true;
+			}
+			else
+			{
+				__dirty = true;
+			}
 			#end
 		}
 
