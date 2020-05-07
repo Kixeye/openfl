@@ -1967,6 +1967,7 @@ import openfl._internal.renderer.cairo.CairoGraphics;
 		if (newWidth != __width || newHeight != __height)
 		{
 			#if !openfl_disable_graphics_upscaling
+			#if openfl_html5
 			if (Std.is(__owner, TextField))
 			{
 				__hardwareDirty = true;
@@ -1975,6 +1976,9 @@ import openfl._internal.renderer.cairo.CairoGraphics;
 			{
 				__dirty = true;
 			}
+			#else
+			__dirty = true;
+			#end
 			#end
 		}
 
