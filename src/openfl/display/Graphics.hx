@@ -1964,27 +1964,26 @@ import openfl._internal.renderer.cairo.CairoGraphics;
 		var newHeight = Math.ceil(height + 1.0);
 
 		// Mark dirty if render size changed
-		if (newWidth != __width || newHeight != __height)
+		if (!__almostEquals(newWidth, __width, 1.5) || !__almostEquals(newHeight, __height, 1.5))
 		{
 			#if !openfl_disable_graphics_upscaling
-			#if openfl_html5
-			if (Std.is(__owner, TextField))
-			{
-				__hardwareDirty = true;
-			}
-			else
-			{
-				__dirty = true;
-			}
-			#else
 			__dirty = true;
-			#end
 			#end
 		}
 
 		__width = newWidth;
 		__height = newHeight;
 	}
+
+    public static function __almostEquals(a:Float, b:Float, epsilon:Float = 0.0001):Bool
+	{
+		if (a == b)
+		{
+			return true;
+		}
+		return Math.abs(a - b) < epsilon;
+	}
+
 
 	// Get & Set Methods
 	@:noCompletion private function set___dirty(value:Bool):Bool
