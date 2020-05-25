@@ -21,6 +21,7 @@ import openfl.utils.Future;
 import openfl.utils.Promise;
 #if lime
 import openfl._internal.backend.lime.AssetManifest;
+import lime.media.AudioBuffer;
 #else
 import openfl.utils.AssetManifest;
 #end
@@ -38,6 +39,7 @@ import openfl.utils.AssetManifest;
 	private var alphaCheck:Map<String, Bool>;
 	private var bitmapClassNames:Map<String, String>;
 	private var bitmapSymbols:Array<AnimateBitmapSymbol>;
+	private var soundSymbols:Map<String, String>;
 	private var frameRate:Float;
 	private var id:String;
 	private var instanceID:String;
@@ -162,6 +164,20 @@ import openfl.utils.AssetManifest;
 	#end
 
 	#if lime
+	public override function getAudioBuffer(id:String):AudioBuffer
+	{
+		if (soundSymbols.exists(id))
+		{
+			var path = soundSymbols.get(id);
+			var bytes = getBytes(path);
+			return AudioBuffer.fromBytes(bytes);
+		}
+
+		return null;
+	}
+	#end
+
+	#if lime
 	public override function isLocal(id:String, type:String):Bool
 	{
 		return true;
@@ -196,6 +212,7 @@ import openfl.utils.AssetManifest;
 			symbols = new Map();
 			symbolsByClassName = new Map();
 			bitmapSymbols = new Array();
+			soundSymbols = [];
 
 			for (i in 0...symbolData.length)
 			{
@@ -218,6 +235,8 @@ import openfl.utils.AssetManifest;
 						symbol = __parseFont(data);
 					case SHAPE:
 						symbol = __parseShape(data);
+					case SOUND:
+						soundSymbols.set(data.id, data.path);
 					case SPRITE:
 						spriteSymbol = __parseSprite(data);
 						if (i == rootIndex) root = spriteSymbol;
@@ -702,4 +721,5 @@ import openfl.utils.AssetManifest;
 	public var SHAPE = 4;
 	public var SPRITE = 5;
 	public var STATIC_TEXT = 6;
+	public var SOUND = 7;
 }
