@@ -212,7 +212,7 @@ import openfl.utils.AssetManifest;
 			symbols = new Map();
 			symbolsByClassName = new Map();
 			bitmapSymbols = new Array();
-			soundSymbols = [];
+			soundSymbols = new Map<String, String>();
 
 			for (i in 0...symbolData.length)
 			{
