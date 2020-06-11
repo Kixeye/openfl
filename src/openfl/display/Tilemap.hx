@@ -80,6 +80,8 @@ class Tilemap extends #if !flash DisplayObject #else Bitmap implements IDisplayO
 	public var smoothing:Bool;
 	#end
 
+	public var mouseEnabled:Bool = true;
+
 	@:noCompletion private var __group:TileContainer;
 	@:noCompletion private var __tileset:Tileset;
 	#if !flash
@@ -398,7 +400,7 @@ class Tilemap extends #if !flash DisplayObject #else Bitmap implements IDisplayO
 	@:noCompletion private override function __hitTest(x:Float, y:Float, shapeFlag:Bool, stack:Array<DisplayObject>, interactiveOnly:Bool,
 			hitObject:DisplayObject):Bool
 	{
-		if (!hitObject.visible || __isMask) return false;
+		if (!hitObject.visible || __isMask || !mouseEnabled) return false;
 		if (mask != null && !mask.__hitTestMask(x, y)) return false;
 
 		__getRenderTransform();
