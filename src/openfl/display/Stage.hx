@@ -1436,7 +1436,12 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 			#elseif js
 			try
 			{
+				#if (haxe >= "4.1.0")
+				var exc = e;
+				#else
 				var exc = @:privateAccess haxe.CallStack.lastException;
+				#end
+
 				if (exc != null && Reflect.hasField(exc, "stack") && exc.stack != null && exc.stack != "")
 				{
 					untyped __js__("console.log")(exc.stack);
