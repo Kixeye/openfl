@@ -33,7 +33,7 @@ class KxTilemapRenderer
 
 	public function render(tilemap:Tilemap)
 	{
-		if (!tilemap.__renderable || tilemap.__group.__tiles.length == 0 || tilemap.__worldAlpha <= 0) return;
+		if (tilemap.__group.__tiles.length == 0) return;
 
 		var rect = Rectangle.__pool.get();
 		var matrix = Matrix.__pool.get();

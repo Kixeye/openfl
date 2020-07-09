@@ -228,9 +228,14 @@ class KxRenderer extends DisplayObjectRenderer
 		}
 	}
 
-	private function _renderRecursive(object:IBitmapDrawable):Void
+	private function _renderRecursive(drawable:IBitmapDrawable):Void
 	{
-		if (object == null)
+		if (drawable == null)
+		{
+			return;
+		}
+		var object:DisplayObject = cast drawable;
+		if (!object.__worldVisible || !object.__renderable || object.__worldAlpha <= 0.0)
 		{
 			return;
 		}
@@ -245,14 +250,8 @@ class KxRenderer extends DisplayObjectRenderer
 		}
 	}
 
-	private function _renderObject(drawable:IBitmapDrawable):Void
+	private function _renderObject(object:DisplayObject):Void
 	{
-		var object:DisplayObject = cast drawable;
-
-		if (!object.__worldVisible || object.__worldAlpha <= 0.0)
-		{
-			return;
-		}
 
 		if (object.__type == SIMPLE_BUTTON)
 		{
@@ -268,7 +267,7 @@ class KxRenderer extends DisplayObjectRenderer
 
 		if (object.__scrollRect != null)
 		{
-			_clipRects.push(object.__scrollRect, object.__worldTransform, _pixelRatio);
+			_clipRects.push(object.__scrollRect, object.__worldTransform);
 		}
 
 		if (object.__cacheBitmapData != null)
@@ -349,10 +348,6 @@ class KxRenderer extends DisplayObjectRenderer
 
 	private function _pushQuad(obj:DisplayObject, texture:KxTexture, transform:Matrix):Void
 	{
-		if (obj == null || !obj.__worldVisible)
-		{
-			return;
-		}
 		var alpha = obj.__worldAlpha;
 		var blendMode = obj.__worldBlendMode;
 		var colorTransform = obj.__worldColorTransform;

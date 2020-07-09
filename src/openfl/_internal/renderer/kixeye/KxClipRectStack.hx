@@ -28,7 +28,7 @@ class KxClipRectStack
 		_rects[0].set(x, y, w, h);
 	}
 
-	public function push(r:Rectangle, t:Matrix, scale:Float):Void
+	public function push(r:Rectangle, t:Matrix):Void
 	{
 		if (_rects.length <= _size)
 		{
@@ -36,7 +36,6 @@ class KxClipRectStack
 		}
 		var rect:KxRect = _rects[_size];
 		rect.setTransform(r, t);
-		rect.scale(scale);
 		if (_size > 0)
 		{
 			rect.clip(_rects[_size - 1]);
