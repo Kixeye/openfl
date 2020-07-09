@@ -1044,7 +1044,7 @@ class GraphicsRenderer
 				bucket.bitmap = b;
 				bucket.textureRepeat = r;
 				bucket.textureSmooth = s;
-				bucket.texture = @:privateAccess b.getTexture(glStack.context3D).__textureID;
+#if !kixeye		bucket.texture = @:privateAccess b.getTexture(glStack.context3D).__textureID; #end
 				bucket.uploadTileBuffer = true;
 
 				// prepare the matrix

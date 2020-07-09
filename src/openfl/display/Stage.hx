@@ -21,6 +21,9 @@ import openfl._internal.backend.lime.Window;
 #if openfl_gl
 import openfl._internal.renderer.context3D.Context3DRenderer;
 #end
+#if kixeye
+import openfl._internal.renderer.kixeye.KxRenderer;
+#end
 #if openfl_html5
 import openfl._internal.renderer.canvas.CanvasRenderer;
 import openfl._internal.renderer.dom.DOMRenderer;
@@ -1185,7 +1188,11 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 		switch (window.context.type)
 		{
 			case OPENGL, OPENGLES, WEBGL:
-				#if openfl_gl
+				#if (kixeye && html5)
+				__renderer = new KxRenderer(this, pixelRatio);
+				#end
+
+				#if (!kixeye && openfl_gl)
 				#if (!disable_cffi && (!html5 || !canvas))
 				context3D = new Context3D(this);
 				context3D.configureBackBuffer(windowWidth, windowHeight, 0, true, true, true);
@@ -1229,12 +1236,12 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 
 			__renderer.__resize(windowWidth, windowHeight);
 
-			if (BitmapData.__hardwareRenderer != null)
-			{
-				BitmapData.__hardwareRenderer.__stage = this;
-				BitmapData.__hardwareRenderer.__worldTransform = __displayMatrix.clone();
-				BitmapData.__hardwareRenderer.__resize(windowWidth, windowHeight);
-			}
+			// if (BitmapData.__hardwareRenderer != null)
+			// {
+			// 	BitmapData.__hardwareRenderer.__stage = this;
+			// 	BitmapData.__hardwareRenderer.__worldTransform = __displayMatrix.clone();
+			// 	BitmapData.__hardwareRenderer.__resize(windowWidth, windowHeight);
+			// }
 		}
 		#end
 	}
@@ -1996,7 +2003,11 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 
 	@:noCompletion private function __onLimeRenderContextLost():Void
 	{
-		__renderer = null;
+		if (__renderer != null)
+		{
+			__renderer.__dispose();
+			__renderer = null;
+		}
 		context3D = null;
 
 		for (stage3D in stage3Ds)

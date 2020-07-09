@@ -16,6 +16,10 @@ import openfl.geom.Point;
 import openfl.geom.Rectangle;
 import openfl.net.NetStream;
 
+import openfl._internal.backend.gl.WebGLRenderingContext;
+import openfl._internal.renderer.kixeye.KxTexture;
+
+
 /**
 	The Video class displays live or recorded video in an application without
 	embedding the video in your SWF file. This class creates a Video object
@@ -77,8 +81,6 @@ import openfl.net.NetStream;
 @:fileXml('tags="haxe,release"')
 @:noDebug
 #end
-@:access(openfl.display3D.textures.TextureBase)
-@:access(openfl.display3D.Context3D)
 @:access(openfl.geom.ColorTransform)
 @:access(openfl.geom.Matrix)
 @:access(openfl.geom.Point)
@@ -86,8 +88,6 @@ import openfl.net.NetStream;
 @:access(openfl.net.NetStream)
 class Video extends DisplayObject
 {
-	@:noCompletion private static inline var VERTEX_BUFFER_STRIDE:Int = 5;
-
 	/**
 		Indicates the type of filter applied to decoded video as part of
 		post-processing. The default value is 0, which lets the video
@@ -158,27 +158,12 @@ class Video extends DisplayObject
 	public var videoWidth(get, never):Int;
 
 	@:noCompletion private var __active:Bool;
-	@:noCompletion private var __buffer:GLBuffer;
-	@:noCompletion private var __bufferAlpha:Float;
-	@:noCompletion private var __bufferColorTransform:ColorTransform;
-	@:noCompletion private var __bufferData:Float32Array;
 	@:noCompletion private var __dirty:Bool;
 	@:noCompletion private var __height:Float;
-	@:noCompletion private var __indexBuffer:IndexBuffer3D;
-	@:noCompletion private var __indexBufferData:UInt16Array;
 	@:noCompletion private var __stream:NetStream;
-	@:noCompletion private var __texture:RectangleTexture;
+	@:noCompletion private var __texture:KxTexture = null;
 	@:noCompletion private var __textureTime:Float;
-	@:noCompletion private var __uvRect:Rectangle;
-	@:noCompletion private var __vertexBuffer:VertexBuffer3D;
-	@:noCompletion private var __vertexBufferData:Float32Array;
 	@:noCompletion private var __width:Float;
-
-	#if lime
-	@:noCompletion private var __bufferContext:RenderContext;
-	@:noCompletion private var __indexBufferContext:RenderContext;
-	@:noCompletion private var __vertexBufferContext:RenderContext;
-	#end
 
 	#if openfljs
 	@:noCompletion private static function __init__()
@@ -293,40 +278,11 @@ class Video extends DisplayObject
 		Rectangle.__pool.release(bounds);
 	}
 
-	@:noCompletion private function __getIndexBuffer(context:Context3D):IndexBuffer3D
-	{
-		#if (lime && openfl_gl)
-		var gl = context.gl;
-
-		if (__indexBuffer == null || __indexBufferContext != context.__context)
-		{
-			// TODO: Use shared buffer on context
-
-			__indexBufferData = new UInt16Array(6);
-			__indexBufferData[0] = 0;
-			__indexBufferData[1] = 1;
-			__indexBufferData[2] = 2;
-			__indexBufferData[3] = 2;
-			__indexBufferData[4] = 1;
-			__indexBufferData[5] = 3;
-
-			__indexBufferContext = context.__context;
-			__indexBuffer = context.createIndexBuffer(6);
-			__indexBuffer.uploadFromTypedArray(__indexBufferData);
-		}
-
-		return __indexBuffer;
-		#else
-		return null;
-		#end
-	}
-
-	@:noCompletion private function __getTexture(context:Context3D):RectangleTexture
+	@:noCompletion private function __getTexture(gl:WebGLRenderingContext):KxTexture
 	{
 		#if openfl_html5
 		if (__stream == null || __stream.__video == null) return null;
 
-		var gl = context.__context.webgl;
 		var internalFormat = gl.RGBA;
 		var format = gl.RGBA;
 
@@ -334,66 +290,13 @@ class Video extends DisplayObject
 		{
 			if (__texture == null)
 			{
-				__texture = context.createRectangleTexture(__stream.__video.videoWidth, __stream.__video.videoHeight, BGRA, false);
+				__texture = new KxTexture(gl, null);
 			}
-
-			context.__bindGLTexture2D(__texture.__textureID);
-			gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, format, gl.UNSIGNED_BYTE, __stream.__video);
-
+			__texture.uploadVideo(__stream.__video);
 			__textureTime = __stream.__video.currentTime;
 		}
 
 		return __texture;
-		#else
-		return null;
-		#end
-	}
-
-	@:noCompletion private function __getVertexBuffer(context:Context3D):VertexBuffer3D
-	{
-		#if (lime && openfl_gl)
-		var gl = context.gl;
-
-		if (__vertexBuffer == null || __vertexBufferContext != context.__context)
-		{
-			#if openfl_power_of_two
-			var newWidth = 1;
-			var newHeight = 1;
-
-			while (newWidth < width)
-			{
-				newWidth <<= 1;
-			}
-
-			while (newHeight < height)
-			{
-				newHeight <<= 1;
-			}
-
-			var uvWidth = width / newWidth;
-			var uvHeight = height / newHeight;
-			#else
-			var uvWidth = 1;
-			var uvHeight = 1;
-			#end
-
-			__vertexBufferData = new Float32Array(VERTEX_BUFFER_STRIDE * 4);
-
-			__vertexBufferData[0] = width;
-			__vertexBufferData[1] = height;
-			__vertexBufferData[3] = uvWidth;
-			__vertexBufferData[4] = uvHeight;
-			__vertexBufferData[VERTEX_BUFFER_STRIDE + 1] = height;
-			__vertexBufferData[VERTEX_BUFFER_STRIDE + 4] = uvHeight;
-			__vertexBufferData[VERTEX_BUFFER_STRIDE * 2] = width;
-			__vertexBufferData[VERTEX_BUFFER_STRIDE * 2 + 3] = uvWidth;
-
-			__vertexBufferContext = context.__context;
-			__vertexBuffer = context.createVertexBuffer(3, VERTEX_BUFFER_STRIDE);
-			__vertexBuffer.uploadFromTypedArray(__vertexBufferData);
-		}
-
-		return __vertexBuffer;
 		#else
 		return null;
 		#end

@@ -168,7 +168,7 @@ import openfl.display3D.Context3D;
 			// TODO: Improve for other input types? Use an interface perhaps
 
 			var bitmapData:BitmapData = cast input;
-			context.setTextureAt(id, bitmapData.getTexture(context));
+			//context.setTextureAt(id, bitmapData.getTexture(context));
 			context.setSamplerStateAt(id, wrap, filter, mipFilter);
 		}
 		else

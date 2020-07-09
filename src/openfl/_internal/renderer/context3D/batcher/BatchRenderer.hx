@@ -226,7 +226,7 @@ class BatchRenderer
 
 	private static function __createIndicesForQuads(numQuads:Int):UInt16Array
 	{
-		var totalIndices = numQuads * 6; // 2 triangles of 3 verties per quad
+		var totalIndices = numQuads * 6; // 2 triangles of 3 vertices per quad
 		var indices = new UInt16Array(totalIndices);
 		var i = 0, j = 0;
 		while (i < totalIndices)

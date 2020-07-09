@@ -42,6 +42,8 @@ class DisplayObjectRenderer extends EventDispatcher
 	@:noCompletion private function __render(object:IBitmapDrawable):Void {}
 
 	@:noCompletion private function __resize(width:Int, height:Int):Void {}
+
+	@:noCompletion private function __dispose():Void {}
 }
 #else
 typedef DisplayObjectRenderer = Dynamic;
