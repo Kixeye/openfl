@@ -25,7 +25,7 @@ class KxClipRectStack
 	{
 		_size = 1;
 		_current = -1;
-		_rects[0].init(x, y, w, h);
+		_rects[0].set(x, y, w, h);
 	}
 
 	public function push(r:Rectangle, t:Matrix):Void
@@ -35,7 +35,7 @@ class KxClipRectStack
 			_rects.push(new KxRect());
 		}
 		var rect:KxRect = _rects[_size];
-		rect.set(r, t);
+		rect.transform(r, t);
 		if (_size > 0)
 		{
 			rect.clip(_rects[_size - 1]);
@@ -48,17 +48,18 @@ class KxClipRectStack
 		--_size;
 	}
 
-	public function scissor(index:Int):Void
+	public function valid(index:Int):Bool
+	{
+		return _rects[index].area() > 0;
+	}
+
+	public function scissor(index:Int, h:Float):Void
 	{
 		if (_current != index)
 		{
 			var r:KxRect = _rects[index];
-			if (r.w > 0 && r.h > 0)
-			{
-				var y = _rects[0].h - (r.y + r.h);
-				_gl.scissor(Std.int(r.x), Std.int(y), Std.int(r.w), Std.int(r.h));
-				_current = index;
-			}
+			_gl.scissor(Std.int(r.x), Std.int(h - (r.y + r.h)), Std.int(r.w), Std.int(r.h));
+			_current = index;
 		}
 	}
 
@@ -69,7 +70,7 @@ class KxClipRectStack
 	}
 }
 
-
+@:access(openfl.geom.Matrix)
 private class KxRect
 {
 	public var x:Float;
@@ -81,7 +82,7 @@ private class KxRect
 	{
 	}
 
-	public function init(x:Float, y:Float, w:Float, h:Float):Void
+	public function set(x:Float, y:Float, w:Float, h:Float):Void
 	{
 		this.x = x;
 		this.y = y;
@@ -97,7 +98,12 @@ private class KxRect
 		h *= s;
 	}
 
-	public function set(r:Rectangle, m:Matrix):Void
+	public function area():Float
+	{
+		return w * h;
+	}
+
+	public function transform(r:Rectangle, m:Matrix):Void
 	{
 		var right = r.x + r.width;
 		var bottom = r.y + r.height;
@@ -131,10 +137,7 @@ private class KxRect
 		if (tx > tx1) tx1 = tx;
 		if (ty > ty1) ty1 = ty;
 
-		x = tx0 + m.tx;
-		y = ty0 + m.ty;
-		w = tx1 - tx0;
-		h = ty1 - ty0;
+		set(tx0 + m.tx, ty0 + m.ty, tx1 - tx0, ty1 - ty0);
 	}
 
 	public function copyFrom(r:KxRect):Void
@@ -166,28 +169,7 @@ private class KxRect
 
 	public function clip(r:KxRect):Void
 	{
-		// if (this.w == 0 && this.h == 0)
-		// {
-		// 	return;
-		// }
-
-		// var offsetX = 0.0;
-		// var offsetY = 0.0;
-		// var offsetRight = 0.0;
-		// var offsetBottom = 0.0;
-
-		// var right = this.x + this.w;
-		// var bottom = this.y + this.h;
-
-		// if (this.x < x) offsetX = r.x - this.x;
-		// if (this.y < y) offsetY = r.y - this.y;
-		// if (right > r.x + r.w) offsetRight = (r.x + r.w) - right;
-		// if (bottom > r.y + r.h) offsetBottom = (r.y + r.h) - bottom;
-
-		// this.x += offsetX;
-		// this.y += offsetY;
-		// this.w += offsetRight - offsetX;
-		// this.h += offsetBottom - offsetY;
+		if (w <= 0 || h <= 0) return;
 
 		if (x < r.x)
 		{

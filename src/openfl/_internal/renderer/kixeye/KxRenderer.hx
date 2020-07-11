@@ -198,16 +198,18 @@ class KxRenderer extends DisplayObjectRenderer
 		var quads = 0;
 		for (cmd in _commands)
 		{
-			_clipRects.scissor(cmd.clipRect);
-			_setBlendMode(cmd.blendMode);
-			for (i in 0...cmd.textures.length)
+			if (_clipRects.valid(cmd.clipRect))
 			{
-				var texture = cmd.textures[i];
-				texture.bind(i, true);
+				_clipRects.scissor(cmd.clipRect, _heightScaled);
+				_setBlendMode(cmd.blendMode);
+				for (i in 0...cmd.textures.length)
+				{
+					var texture = cmd.textures[i];
+					texture.bind(i, true);
+				}
+				_vertices.draw(cmd.offset, cmd.count);
+				++drawCalls;
 			}
-			_vertices.draw(cmd.offset, cmd.count);
-
-			++drawCalls;
 		}
 
 		trace("nodes: " + _nodesVisited + ", draw calls: " + drawCalls + ", quads: " + Std.int(_vertices.getNumVertices() / 4));
@@ -284,11 +286,11 @@ class KxRenderer extends DisplayObjectRenderer
 		{
 			_pushQuad(object, object.__cacheBitmapData.getTexture(gl), object.__worldTransform);
 		}
-		else if (object.__graphics != null && object.__graphics.__visible && object.__graphics.__bitmap != null)
+		if (object.__graphics != null && object.__graphics.__visible && object.__graphics.__bitmap != null)
 		{
 			_pushQuad(object, object.__graphics.__bitmap.getTexture(gl), object.__graphics.__worldTransform);
 		}
-		else if (object.__type == BITMAP)
+		if (object.__type == BITMAP)
 		{
 			var bmp:Bitmap = cast object;
 			if (bmp.__bitmapData != null)
@@ -319,7 +321,7 @@ class KxRenderer extends DisplayObjectRenderer
 		}
 		if (object.__graphics != null)
 		{
-			_softwareRenderer.__worldTransform.identity();
+			//_softwareRenderer.__worldTransform.identity();
 			CanvasGraphics.render(object.__graphics, _softwareRenderer);
 		}
 
@@ -531,10 +533,10 @@ class KxRenderer extends DisplayObjectRenderer
 
 	private function _push(texture:KxTexture, blendMode:BlendMode, alpha:Float, colorTransform:ColorTransform)
 	{
-		if (!_clipRects.intersects(_posCache))
-		{
-			return;
-		}
+		// if (!_clipRects.intersects(_posCache))
+		// {
+		// 	return;
+		// }
 		texture = (texture != null && texture.valid) ? texture : _defaultTexture;
 
 		var textureUnit = -1;
@@ -638,9 +640,9 @@ private class QuadShader
 			v_colorOffset = a_colorOffset / 255.0;
 			v_textureId = a_textureId;
 
-			vec2 n = (a_pos / u_view) * 2.0 - 1.0;
-			n.y *= -1.0;
-			gl_Position = vec4(n, 0, 1);
+			vec2 p = (a_pos / u_view) * 2.0 - 1.0;
+			p.y *= -1.0;
+			gl_Position = vec4(p, 0, 1);
 		}
 	';
 
