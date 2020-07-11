@@ -8,6 +8,7 @@ import openfl._internal.backend.utils.Float32Array;
 import openfl._internal.renderer.canvas.CanvasRenderer;
 import openfl._internal.renderer.canvas.CanvasTextField;
 import openfl._internal.renderer.canvas.CanvasGraphics;
+import openfl._internal.renderer.canvas.CanvasShape;
 import openfl.display.BlendMode;
 import openfl.display.Bitmap;
 import openfl.display.BitmapData;
@@ -49,7 +50,7 @@ class KxRenderer extends DisplayObjectRenderer
 	private var _stage:Stage;
 
 	private var _pixelRatio:Float;
-	private var _softwareRenderer:DisplayObjectRenderer;
+	private var _softwareRenderer:CanvasRenderer;
 
 	private var _width:Float;
 	private var _height:Float;
@@ -76,6 +77,8 @@ class KxRenderer extends DisplayObjectRenderer
 	private var _defaultTexture:KxTexture;
 	private var _tilemapRenderer:KxTilemapRenderer;
 
+	private var _nodesVisited:Int = 0;
+
 	public function new(stage:Stage, pixelRatio:Float)
 	{
 		super();
@@ -85,6 +88,9 @@ class KxRenderer extends DisplayObjectRenderer
 		_stage = stage;
 		_pixelRatio = pixelRatio;
 		_softwareRenderer = new CanvasRenderer(null);
+		_softwareRenderer.pixelRatio = pixelRatio;
+		_softwareRenderer.__worldTransform = new Matrix();
+		_softwareRenderer.__worldColorTransform = new ColorTransform();
 		_tilemapRenderer = new KxTilemapRenderer(this);
 
 		var glslVersion = gl.getParameter(gl.SHADING_LANGUAGE_VERSION);
@@ -163,6 +169,7 @@ class KxRenderer extends DisplayObjectRenderer
 	private override function __render(object:IBitmapDrawable):Void
 	{
 		_beginFrame();
+		_nodesVisited = 0;
 		_renderRecursive(object);
 		_endFrame();
 	}
@@ -203,7 +210,7 @@ class KxRenderer extends DisplayObjectRenderer
 			++drawCalls;
 		}
 
-		trace("draw calls: " + drawCalls + ", quads: " + Std.int(_vertices.getNumVertices() / 4));
+		trace("nodes: " + _nodesVisited + ", draw calls: " + drawCalls + ", quads: " + Std.int(_vertices.getNumVertices() / 4));
 		// var err = gl.getError();
 		// if (err != gl.NO_ERROR)
 		// {
@@ -239,6 +246,10 @@ class KxRenderer extends DisplayObjectRenderer
 		{
 			return;
 		}
+		if (object.__scrollRect != null)
+		{
+			_clipRects.push(object.__scrollRect, object.__worldTransform);
+		}
 		_renderObject(object);
 		if (object.__type == DISPLAY_OBJECT_CONTAINER)
 		{
@@ -248,10 +259,15 @@ class KxRenderer extends DisplayObjectRenderer
 				_renderRecursive(child);
 			}
 		}
+		if (object.__scrollRect != null)
+		{
+			_clipRects.pop();
+		}
 	}
 
 	private function _renderObject(object:DisplayObject):Void
 	{
+		++_nodesVisited;
 
 		if (object.__type == SIMPLE_BUTTON)
 		{
@@ -260,26 +276,19 @@ class KxRenderer extends DisplayObjectRenderer
 			{
 				_renderObject(button.__currentState);
 			}
-			return;
 		}
 
 		_drawCacheBitmap(object);
-
-		if (object.__scrollRect != null)
-		{
-			_clipRects.push(object.__scrollRect, object.__worldTransform);
-		}
 
 		if (object.__cacheBitmapData != null)
 		{
 			_pushQuad(object, object.__cacheBitmapData.getTexture(gl), object.__worldTransform);
 		}
-		if (object.__graphics != null && object.__graphics.__visible && object.__graphics.__bitmap != null)
+		else if (object.__graphics != null && object.__graphics.__visible && object.__graphics.__bitmap != null)
 		{
 			_pushQuad(object, object.__graphics.__bitmap.getTexture(gl), object.__graphics.__worldTransform);
 		}
-
-		if (object.__type == BITMAP)
+		else if (object.__type == BITMAP)
 		{
 			var bmp:Bitmap = cast object;
 			if (bmp.__bitmapData != null)
@@ -300,45 +309,24 @@ class KxRenderer extends DisplayObjectRenderer
 				_pushQuad(video, texture, video.__worldTransform);
 			}
 		}
-
-		if (object.__scrollRect != null)
-		{
-			_clipRects.pop();
-		}
 	}
 
 	private function _drawCacheBitmap(object:DisplayObject)
 	{
 		if (object.__type == TEXTFIELD)
 		{
-			_renderTextField(cast object);
+			CanvasTextField.render(cast object, _softwareRenderer, object.__worldTransform);
 		}
-		else if (object.__graphics != null)
+		if (object.__graphics != null)
 		{
-			_renderGraphics(object.__graphics);
+			_softwareRenderer.__worldTransform.identity();
+			CanvasGraphics.render(object.__graphics, _softwareRenderer);
 		}
 
 		if (object.__filters != null)
 		{
 			_renderFilters(object);
 		}
-	}
-
-	private function _renderGraphics(graphics:Graphics):Void
-	{
-		// TODO
-		if (graphics.__bitmap != null && !graphics.__dirty)
-		{
-			CanvasGraphics.render(graphics, cast _softwareRenderer);
-			graphics.__hardwareDirty = false;
-			graphics.__dirty = false;
-		}
-	}
-
-	private function _renderTextField(tf:TextField):Void
-	{
-		CanvasTextField.render(tf, cast _softwareRenderer, tf.__worldTransform);
-		tf.__graphics.__hardwareDirty = false;
 	}
 
 	private function _renderFilters(obj:DisplayObject):Void
@@ -543,12 +531,17 @@ class KxRenderer extends DisplayObjectRenderer
 
 	private function _push(texture:KxTexture, blendMode:BlendMode, alpha:Float, colorTransform:ColorTransform)
 	{
+		if (!_clipRects.intersects(_posCache))
+		{
+			return;
+		}
 		texture = (texture != null && texture.valid) ? texture : _defaultTexture;
 
 		var textureUnit = -1;
 		var cmd:Command = null;
 		var tail:Command = _commands.length > 0 ? _commands[_commands.length - 1] : null;
 		var newCommand:Bool = (tail == null || tail.blendMode != blendMode || tail.clipRect != _clipRects.top());
+
 		if (!newCommand)
 		{
 			for (i in 0...tail.textures.length)

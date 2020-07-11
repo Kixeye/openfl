@@ -10,7 +10,8 @@ import openfl._internal.backend.gl.WebGLRenderingContext;
 
 class KxTexture implements KxGLResource
 {
-	private var _gl:WebGLRenderingContext;
+	public var gl:WebGLRenderingContext;
+	public var version:Int = -1;
 	private var _texture:Texture = null;
 	private var _width:Int = 0;
 	private var _height:Int = 0;
@@ -23,10 +24,10 @@ class KxTexture implements KxGLResource
 
 	public function new(gl:WebGLRenderingContext, image:Image)
 	{
-		_gl = gl;
+		this.gl = gl;
 
-		_texture = _gl.createTexture();
-		_gl.bindTexture(_gl.TEXTURE_2D, _texture);
+		_texture = gl.createTexture();
+		gl.bindTexture(gl.TEXTURE_2D, _texture);
 		if (image != null)
 		{
 			upload(image);
@@ -35,10 +36,10 @@ class KxTexture implements KxGLResource
 
 	public function bind(textureUnit:Int, smooth:Bool):Void
 	{
-		_gl.activeTexture(_gl.TEXTURE0 + textureUnit);
-		_gl.bindTexture(_gl.TEXTURE_2D, _texture);
-		_gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_MIN_FILTER, smooth ? _gl.LINEAR : _gl.NEAREST);
-		_gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_MAG_FILTER, smooth ? _gl.LINEAR : _gl.NEAREST);
+		gl.activeTexture(gl.TEXTURE0 + textureUnit);
+		gl.bindTexture(gl.TEXTURE_2D, _texture);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, smooth ? gl.LINEAR : gl.NEAREST);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, smooth ? gl.LINEAR : gl.NEAREST);
 	}
 
 	public function upload(image:Image):Void
@@ -60,35 +61,36 @@ class KxTexture implements KxGLResource
 			trace("Invalid texture size: " + _width + "x" + _height);
 			return;
 		}
-		_gl.bindTexture(_gl.TEXTURE_2D, _texture);
+		gl.bindTexture(gl.TEXTURE_2D, _texture);
 
 		var internalFormat, format;
 		if (image.buffer.bitsPerPixel == 1)
 		{
-			internalFormat = _gl.ALPHA;
-			format = _gl.ALPHA;
+			internalFormat = gl.ALPHA;
+			format = gl.ALPHA;
 		}
 		else
 		{
-			internalFormat = _gl.RGBA;
-			format = _gl.RGBA;
+			internalFormat = gl.RGBA;
+			format = gl.RGBA;
 		}
 
 		if ((image.type != DATA && !image.premultiplied) || (!image.premultiplied && image.transparent))
 		{
-			_gl.pixelStorei(_gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 1);
+			gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 1);
 		}
 		if (image.type == DATA)
 		{
-			_gl.texImage2D(_gl.TEXTURE_2D, 0, internalFormat, image.buffer.width, image.buffer.height, 0, format, _gl.UNSIGNED_BYTE, image.data);
+			gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, image.buffer.width, image.buffer.height, 0, format, gl.UNSIGNED_BYTE, image.data);
 		}
 		else
 		{
-			_gl.texImage2D(_gl.TEXTURE_2D, 0, internalFormat, format, _gl.UNSIGNED_BYTE, image.src);
+			gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, format, gl.UNSIGNED_BYTE, image.src);
 		}
-		_gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_WRAP_S, _gl.CLAMP_TO_EDGE);
-		_gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_WRAP_T, _gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
+		version = image.version;
 		valid = true;
 	}
 
@@ -110,10 +112,10 @@ class KxTexture implements KxGLResource
 
 	public function uploadVideo(video:VideoElement):Void
 	{
-		_gl.bindTexture(_gl.TEXTURE_2D, _texture);
-		_gl.texImage2D(_gl.TEXTURE_2D, 0, _gl.RGBA, _gl.RGBA, _gl.UNSIGNED_BYTE, video);
-		_gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_WRAP_S, _gl.CLAMP_TO_EDGE);
-		_gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_WRAP_T, _gl.CLAMP_TO_EDGE);
+		gl.bindTexture(gl.TEXTURE_2D, _texture);
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 		_width = video.width;
 		_height = video.height;
 		valid = true;
@@ -123,9 +125,10 @@ class KxTexture implements KxGLResource
 	{
 		if (_texture != null)
 		{
-			_gl.deleteTexture(_texture);
+			gl.deleteTexture(_texture);
 			_texture = null;
 			valid = false;
+			version = -1;
 		}
 	}
 }

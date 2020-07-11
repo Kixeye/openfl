@@ -34,7 +34,7 @@ class CanvasTextField
 		var bounds = (textEngine.background || textEngine.border) ? textEngine.bounds : textEngine.textBounds;
 		var graphics = textField.__graphics;
 		#if openfl_gl
-		var pixelRatio = Context3DRenderer.pixelRatio;
+		var pixelRatio = renderer.pixelRatio;
 		#else
 		var pixelRatio = 1.0;
 		#end

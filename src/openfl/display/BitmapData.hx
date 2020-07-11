@@ -205,10 +205,14 @@ class BitmapData implements IBitmapDrawable
 	@:noCompletion private var __worldTransform:Matrix;
 
 
+	#if kixeye
 	static private var __renderer:KxRenderer = null;
 	private var __renderTarget:KxRenderTarget = null;
 	private var __texture:KxTexture = null;
 	private var __textureVersion:Int = -1;
+	#else
+	static private var __renderer:DisplayObjectRenderer;
+	#end
 
 	/**
 		Creates a BitmapData object with a specified width and height. If you specify a value for
@@ -395,9 +399,10 @@ class BitmapData implements IBitmapDrawable
 			bitmapData.height = height;
 			bitmapData.rect.copyFrom(rect);
 
+			#if kixeye
 			bitmapData.__texture = __texture;
-			bitmapData.__textureVersion = __textureVersion;
 			bitmapData.__renderTarget = __renderTarget;
+			#end
 		}
 		else
 		{
@@ -763,10 +768,12 @@ class BitmapData implements IBitmapDrawable
 		readable = false;
 		__isValid = false;
 
+		#if kixeye
 		if (__texture != null)
 		{
 			__texture.dispose();
 			__texture = null;
+			__textureVersion = -1;
 		}
 
 		if (__renderTarget != null)
@@ -774,6 +781,7 @@ class BitmapData implements IBitmapDrawable
 			__renderTarget.dispose();
 			__renderTarget = null;
 		}
+		#end
 	}
 
 	/**
@@ -892,6 +900,7 @@ class BitmapData implements IBitmapDrawable
 		{
 			_colorTransform.__combine(colorTransform);
 		}
+
 		__renderer.__allowSmoothing = smoothing;
 
 		/*
@@ -1500,6 +1509,7 @@ class BitmapData implements IBitmapDrawable
 		#end
 	}
 
+	#if kixeye
 	@:dox(hide) public function getTexture(gl:WebGLRenderingContext):KxTexture
 	{
 		if (!__isValid) return null;
@@ -1510,8 +1520,15 @@ class BitmapData implements IBitmapDrawable
 			{
 				__texture.dispose();
 				__texture = null;
+				__textureVersion = -1;
 			}
 			return null;
+		}
+		if (__texture != null && __texture.gl != gl)
+		{
+			__texture.dispose();
+			__texture = null;
+			__textureVersion = -1;
 		}
 
 		#if lime
@@ -1519,7 +1536,7 @@ class BitmapData implements IBitmapDrawable
 		ImageCanvasUtil.sync(image, false);
 		#end
 
-		if (image != null && image.version > __textureVersion)
+		if (image != null && image.version != __textureVersion)
 		{
 			if (__texture == null)
 			{
@@ -1529,7 +1546,7 @@ class BitmapData implements IBitmapDrawable
 			{
 				__texture.upload(image);
 			}
-			__textureVersion = image.version;
+			__textureVersion = __texture.version;
 		}
 
 		if (!readable && image != null)
@@ -1540,6 +1557,7 @@ class BitmapData implements IBitmapDrawable
 
 		return __texture;
 	}
+	#end
 
 	/**
 		Generates a vector array from a rectangular region of pixel data. Returns
