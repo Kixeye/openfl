@@ -250,7 +250,7 @@ class KxRenderer extends DisplayObjectRenderer
 		}
 		if (object.__scrollRect != null)
 		{
-			_clipRects.push(object.__scrollRect, object.__worldTransform);
+			_clipRects.push(object.__scrollRect, object.__renderTransform);
 		}
 		_renderObject(object);
 		if (object.__type == DISPLAY_OBJECT_CONTAINER)
