@@ -44,6 +44,7 @@ class KxRenderer extends DisplayObjectRenderer
 	private static var IDENTITY_COLOR_TRANSFORM = new ColorTransform();
 	private static var QUAD_INDICES:Array<Int> = [0, 1, 2, 0, 2, 3];
 	private static var DEFAULT_UVS:Array<Float> = [0, 0, 1, 0, 1, 1, 0, 1];
+	private static var DEFAULT_MASK_UVS:Array<Float> = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5];
 
 	public var gl:WebGLRenderingContext;
 
@@ -57,25 +58,28 @@ class KxRenderer extends DisplayObjectRenderer
 	private var _widthScaled:Float;
 	private var _heightScaled:Float;
 
-	private var _filters:Bool = false;
-
 	private var _shader:KxShader;
 	private var _viewUniform:UniformLocation;
 	private var _maxTextureUnits:Int;
+	private var _maskUnit:Int;
+	private var _defaultTexture:KxTexture;
 	private var _vertices:KxVertexBuffer;
 	private var _vertexStride:Int = 0;
 
 	private var _uvCache:Array<Float> = [0, 0, 0, 0, 0, 0, 0, 0];
+	private var _maskUvCache:Array<Float> = [0, 0, 0, 0, 0, 0, 0, 0];
 	private var _posCache:Array<Float> = [0, 0, 0, 0, 0, 0, 0, 0];
 	private var _uvs:Array<Float> = DEFAULT_UVS;
+	private var _maskUvs:Array<Float> = DEFAULT_MASK_UVS;
 	private var _vertexCache:Array<Float> = null;
-	private var _clipRects:KxClipRectStack = null;
 
 	private var _commands:Array<Command> = [];
 	private var _blendMode:BlendMode = NORMAL;
 
-	private var _defaultTexture:KxTexture;
+	private var _clipRects:KxClipRectStack;
+	private var _masks:KxMaskStack;
 	private var _tilemapRenderer:KxTilemapRenderer;
+	private var _filterRenderer:KxFilterRenderer;
 
 	private var _nodesVisited:Int = 0;
 
@@ -91,12 +95,12 @@ class KxRenderer extends DisplayObjectRenderer
 		_softwareRenderer.pixelRatio = pixelRatio;
 		_softwareRenderer.__worldTransform = new Matrix();
 		_softwareRenderer.__worldColorTransform = new ColorTransform();
-		_tilemapRenderer = new KxTilemapRenderer(this);
 
 		var glslVersion = gl.getParameter(gl.SHADING_LANGUAGE_VERSION);
 		trace("Shading language version: " + glslVersion);
 
 		_maxTextureUnits = Std.int(Math.min(16, gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS)));
+		_maskUnit = --_maxTextureUnits;
 
 		var maxTextureSize:Int = gl.getParameter(gl.MAX_TEXTURE_SIZE);
 		trace("Max texture size: " + maxTextureSize);
@@ -121,7 +125,7 @@ class KxRenderer extends DisplayObjectRenderer
 
 		_vertices = new KxVertexBuffer(gl);
 		_vertices.attribute("a_pos", 2, false);
-		_vertices.attribute("a_uv", 2, false);
+		_vertices.attribute("a_uv", 4, false);
 		_vertices.attribute("a_colorMult", 4, false);
 		_vertices.attribute("a_colorOffset", 4, false);
 		_vertices.attribute("a_textureId", 1, false);
@@ -137,9 +141,13 @@ class KxRenderer extends DisplayObjectRenderer
 			gl.uniform1i(_shader.getUniform("u_sampler" + i), i);
 			_defaultTexture.bind(i, false);
 		}
+		gl.uniform1i(_shader.getUniform("u_mask"), _maskUnit);
 		_viewUniform = _shader.getUniform("u_view");
 
 		_clipRects = new KxClipRectStack(gl);
+		_masks = new KxMaskStack(gl);
+		_tilemapRenderer = new KxTilemapRenderer(this);
+		_filterRenderer = new KxFilterRenderer(gl);
 	}
 
 	private override function __dispose():Void
@@ -207,6 +215,7 @@ class KxRenderer extends DisplayObjectRenderer
 					var texture = cmd.textures[i];
 					texture.bind(i, true);
 				}
+				_masks.bind(cmd.mask, _maskUnit);
 				_vertices.draw(cmd.offset, cmd.count);
 				++drawCalls;
 			}
@@ -252,6 +261,10 @@ class KxRenderer extends DisplayObjectRenderer
 		{
 			_clipRects.push(object.__scrollRect, object.__renderTransform);
 		}
+		else if (object.__mask != null)
+		{
+			_masks.push(object.__mask);
+		}
 		_renderObject(object);
 		if (object.__type == DISPLAY_OBJECT_CONTAINER)
 		{
@@ -264,6 +277,10 @@ class KxRenderer extends DisplayObjectRenderer
 		if (object.__scrollRect != null)
 		{
 			_clipRects.pop();
+		}
+		else if (object.__mask != null)
+		{
+			_masks.pop();
 		}
 	}
 
@@ -323,16 +340,10 @@ class KxRenderer extends DisplayObjectRenderer
 		{
 			CanvasGraphics.render(object.__graphics, _softwareRenderer);
 		}
-
 		if (object.__filters != null)
 		{
-			_renderFilters(object);
+			_filterRenderer.render(object);
 		}
-	}
-
-	private function _renderFilters(obj:DisplayObject):Void
-	{
-		// TODO
 	}
 
 	private function _pushQuad(obj:DisplayObject, texture:KxTexture, transform:Matrix):Void
@@ -541,7 +552,7 @@ class KxRenderer extends DisplayObjectRenderer
 		var textureUnit = -1;
 		var cmd:Command = null;
 		var tail:Command = _commands.length > 0 ? _commands[_commands.length - 1] : null;
-		var newCommand:Bool = (tail == null || tail.blendMode != blendMode || tail.clipRect != _clipRects.top());
+		var newCommand:Bool = (tail == null || tail.blendMode != blendMode || tail.clipRect != _clipRects.top() || tail.mask != _masks.top());
 
 		if (!newCommand)
 		{
@@ -563,7 +574,7 @@ class KxRenderer extends DisplayObjectRenderer
 		if (newCommand || textureUnit == -1)
 		{
 			textureUnit = 0;
-			cmd = new Command(_clipRects.top(), blendMode, texture, _vertices.getNumIndices(), 6);
+			cmd = new Command(_masks.top(), _clipRects.top(), blendMode, texture, _vertices.getNumIndices(), 6);
 			_commands.push(cmd);
 		}
 		else
@@ -583,15 +594,17 @@ class KxRenderer extends DisplayObjectRenderer
 			_vertexCache[j + 1 ] = _posCache[k + 1];
 			_vertexCache[j + 2 ] = _uvs[k];
 			_vertexCache[j + 3 ] = _uvs[k + 1];
-			_vertexCache[j + 4 ] = ct.redMultiplier;
-			_vertexCache[j + 5 ] = ct.greenMultiplier;
-			_vertexCache[j + 6 ] = ct.blueMultiplier;
-			_vertexCache[j + 7 ] = alpha;
-			_vertexCache[j + 8 ] = ct.redOffset;
-			_vertexCache[j + 9 ] = ct.greenOffset;
-			_vertexCache[j + 10] = ct.blueOffset;
-			_vertexCache[j + 11] = alphaOffset;
-			_vertexCache[j + 12] = textureUnit;
+			_vertexCache[j + 4 ] = _maskUvs[k];
+			_vertexCache[j + 5 ] = _maskUvs[k + 1];
+			_vertexCache[j + 6 ] = ct.redMultiplier;
+			_vertexCache[j + 7 ] = ct.greenMultiplier;
+			_vertexCache[j + 8 ] = ct.blueMultiplier;
+			_vertexCache[j + 9 ] = alpha;
+			_vertexCache[j + 10 ] = ct.redOffset;
+			_vertexCache[j + 11 ] = ct.greenOffset;
+			_vertexCache[j + 12] = ct.blueOffset;
+			_vertexCache[j + 13] = alphaOffset;
+			_vertexCache[j + 14] = textureUnit;
 		}
 		_vertices.push(_vertexCache, QUAD_INDICES);
 	}
@@ -599,14 +612,16 @@ class KxRenderer extends DisplayObjectRenderer
 
 private class Command
 {
+	public var mask:Int;
 	public var clipRect:Int;
 	public var blendMode:BlendMode;
 	public var textures:Array<KxTexture>;
 	public var offset:Int;
 	public var count:Int;
 
-	public function new(clipRect:Int, blendMode:BlendMode, texture:KxTexture, offset:Int, count:Int)
+	public function new(mask:Int, clipRect:Int, blendMode:BlendMode, texture:KxTexture, offset:Int, count:Int)
 	{
+		this.mask = mask;
 		this.clipRect = clipRect;
 		this.blendMode = blendMode;
 		this.textures = [ texture ];
@@ -623,12 +638,12 @@ private class QuadShader
 		uniform vec2 u_view;
 
 		attribute vec2 a_pos;
-		attribute vec2 a_uv;
+		attribute vec4 a_uv;
 		attribute vec4 a_colorMult;
 		attribute vec4 a_colorOffset;
 		attribute float a_textureId;
 
-		varying vec2 v_uv;
+		varying vec4 v_uv;
 		varying vec4 v_colorMult;
 		varying vec4 v_colorOffset;
 		varying float v_textureId;
@@ -648,7 +663,7 @@ private class QuadShader
 	public static inline var FRAGMENT:String = '
 		precision highp float;
 
-		varying vec2 v_uv;
+		varying vec4 v_uv;
 		varying vec4 v_colorMult;
 		varying vec4 v_colorOffset;
 		varying float v_textureId;
@@ -668,32 +683,37 @@ private class QuadShader
 		uniform sampler2D u_sampler12;
 		uniform sampler2D u_sampler13;
 		uniform sampler2D u_sampler14;
-		uniform sampler2D u_sampler15;
+
+		uniform sampler2D u_mask;
 
 		void main(void) {
 			vec4 color;
 			int textureId = int(v_textureId);
 
-			if (textureId == 0) color = texture2D(u_sampler0, v_uv);
-			else if (textureId == 1) color = texture2D(u_sampler1, v_uv);
-			else if (textureId == 2) color = texture2D(u_sampler2, v_uv);
-			else if (textureId == 3) color = texture2D(u_sampler3, v_uv);
-			else if (textureId == 4) color = texture2D(u_sampler4, v_uv);
-			else if (textureId == 5) color = texture2D(u_sampler5, v_uv);
-			else if (textureId == 6) color = texture2D(u_sampler6, v_uv);
-			else if (textureId == 7) color = texture2D(u_sampler7, v_uv);
-			else if (textureId == 8) color = texture2D(u_sampler8, v_uv);
-			else if (textureId == 9) color = texture2D(u_sampler9, v_uv);
-			else if (textureId == 10) color = texture2D(u_sampler10, v_uv);
-			else if (textureId == 11) color = texture2D(u_sampler11, v_uv);
-			else if (textureId == 12) color = texture2D(u_sampler12, v_uv);
-			else if (textureId == 13) color = texture2D(u_sampler13, v_uv);
-			else if (textureId == 14) color = texture2D(u_sampler14, v_uv);
-			else if (textureId == 15) color = texture2D(u_sampler15, v_uv);
+			vec2 uv = v_uv.xy;
+			vec2 muv = v_uv.zw;
+
+			if (textureId == 0) color = texture2D(u_sampler0, uv);
+			else if (textureId == 1) color = texture2D(u_sampler1, uv);
+			else if (textureId == 2) color = texture2D(u_sampler2, uv);
+			else if (textureId == 3) color = texture2D(u_sampler3, uv);
+			else if (textureId == 4) color = texture2D(u_sampler4, uv);
+			else if (textureId == 5) color = texture2D(u_sampler5, uv);
+			else if (textureId == 6) color = texture2D(u_sampler6, uv);
+			else if (textureId == 7) color = texture2D(u_sampler7, uv);
+			else if (textureId == 8) color = texture2D(u_sampler8, uv);
+			else if (textureId == 9) color = texture2D(u_sampler9, uv);
+			else if (textureId == 10) color = texture2D(u_sampler10, uv);
+			else if (textureId == 11) color = texture2D(u_sampler11, uv);
+			else if (textureId == 12) color = texture2D(u_sampler12, uv);
+			else if (textureId == 13) color = texture2D(u_sampler13, uv);
+			else if (textureId == 14) color = texture2D(u_sampler14, uv);
+
+			vec4 mask = texture2D(u_mask, muv);
 
 			color.rgb /= color.a;
 			color = clamp((color * v_colorMult) + v_colorOffset, 0.0, 1.0);
-			gl_FragColor = vec4(color.rgb * color.a, color.a);
+			gl_FragColor = vec4(color.rgb * color.a, color.a) * mask.a;
 		}
 	';
 }

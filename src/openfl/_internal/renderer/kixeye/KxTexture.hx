@@ -110,6 +110,21 @@ class KxTexture implements KxGLResource
 		upload(image);
 	}
 
+	public function uploadWhite():Void
+	{
+		var w = 4;
+		var h = 4;
+		var image = new Image(null, 0, 0, w, h, 0, DATA);
+		for (i in 0...w)
+		{
+			for (j in 0...h)
+			{
+				image.setPixel32(i, j, 0xFFFFFFFF);
+			}
+		}
+		upload(image);
+	}
+
 	public function uploadVideo(video:VideoElement):Void
 	{
 		gl.bindTexture(gl.TEXTURE_2D, _texture);
