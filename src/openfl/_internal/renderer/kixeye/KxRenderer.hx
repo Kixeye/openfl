@@ -284,7 +284,7 @@ class KxRenderer extends DisplayObjectRenderer
 
 		if (object.__cacheBitmapData != null)
 		{
-			_pushQuad(object, object.__cacheBitmapData.getTexture(gl), object.__worldTransform);
+			_pushQuad(object, object.__cacheBitmapData.getTexture(gl), object.__cacheBitmapMatrix);
 		}
 		if (object.__graphics != null && object.__graphics.__visible && object.__graphics.__bitmap != null)
 		{
@@ -295,7 +295,7 @@ class KxRenderer extends DisplayObjectRenderer
 			var bmp:Bitmap = cast object;
 			if (bmp.__bitmapData != null)
 			{
-				_pushQuad(bmp, bmp.__bitmapData.getTexture(gl), bmp.__worldTransform);
+				_pushQuad(bmp, bmp.__bitmapData.getTexture(gl), bmp.__renderTransform);
 			}
 		}
 		else if (object.__type == TILEMAP)
@@ -308,7 +308,7 @@ class KxRenderer extends DisplayObjectRenderer
 			var texture = video.__getTexture(gl);
 			if (texture != null)
 			{
-				_pushQuad(video, texture, video.__worldTransform);
+				_pushQuad(video, texture, video.__renderTransform);
 			}
 		}
 	}
@@ -321,7 +321,6 @@ class KxRenderer extends DisplayObjectRenderer
 		}
 		if (object.__graphics != null)
 		{
-			//_softwareRenderer.__worldTransform.identity();
 			CanvasGraphics.render(object.__graphics, _softwareRenderer);
 		}
 

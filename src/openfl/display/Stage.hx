@@ -26,7 +26,6 @@ import openfl._internal.renderer.kixeye.KxRenderer;
 #end
 #if openfl_html5
 import openfl._internal.renderer.canvas.CanvasRenderer;
-import openfl._internal.renderer.dom.DOMRenderer;
 #else
 import openfl._internal.renderer.cairo.CairoRenderer;
 #end
@@ -1209,13 +1208,6 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 			case CANVAS:
 				#if openfl_html5
 				var renderer = new CanvasRenderer(window.context.canvas2D);
-				renderer.pixelRatio = pixelRatio;
-				__renderer = renderer;
-				#end
-
-			case DOM:
-				#if openfl_html5
-				var renderer = new DOMRenderer(window.context.dom);
 				renderer.pixelRatio = pixelRatio;
 				__renderer = renderer;
 				#end

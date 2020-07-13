@@ -889,6 +889,7 @@ class DisplayObject extends EventDispatcher implements IBitmapDrawable #if (open
 	@:noCompletion private var __blendMode:BlendMode;
 	@:noCompletion private var __cacheAsBitmap:Bool;
 	@:noCompletion private var __cacheAsBitmapMatrix:Matrix;
+
 	@:noCompletion private var __cacheBitmap:Bitmap;
 	@:noCompletion private var __cacheBitmapBackground:Null<Int>;
 	@:noCompletion private var __cacheBitmapColorTransform:ColorTransform;
@@ -899,6 +900,7 @@ class DisplayObject extends EventDispatcher implements IBitmapDrawable #if (open
 	@:noCompletion private var __cacheBitmapMatrix:Matrix;
 	@:noCompletion private var __cacheBitmapRendererHW:DisplayObjectRenderer;
 	@:noCompletion private var __cacheBitmapRendererSW:DisplayObjectRenderer;
+
 	@SuppressWarnings("checkstyle:Dynamic") @:noCompletion private var __cairo:#if lime Cairo #else Dynamic #end;
 	@:noCompletion private var __children:Array<DisplayObject>;
 	@:noCompletion private var __customRenderClear:Bool;
@@ -917,8 +919,6 @@ class DisplayObject extends EventDispatcher implements IBitmapDrawable #if (open
 	@:noCompletion private var __renderDirty:Bool;
 	@:noCompletion private var __renderParent:DisplayObject;
 	@:noCompletion private var __renderTransform:Matrix;
-	@:noCompletion private var __renderTransformCache:Matrix;
-	@:noCompletion private var __renderTransformChanged:Bool;
 	@:noCompletion private var __rotation:Float;
 	@:noCompletion private var __rotationCosine:Float;
 	@:noCompletion private var __rotationSine:Float;
@@ -1731,36 +1731,9 @@ class DisplayObject extends EventDispatcher implements IBitmapDrawable #if (open
 
 		if (!transformOnly)
 		{
-			if (__supportDOM)
-			{
-				__renderTransformChanged = !__renderTransform.equals(__renderTransformCache);
-
-				if (__renderTransformCache == null)
-				{
-					__renderTransformCache = __renderTransform.clone();
-				}
-				else
-				{
-					__renderTransformCache.copyFrom(__renderTransform);
-				}
-			}
-
 			if (renderParent != null)
 			{
-				if (__supportDOM)
-				{
-					var worldVisible = (renderParent.__worldVisible && __visible);
-					__worldVisibleChanged = (__worldVisible != worldVisible);
-					__worldVisible = worldVisible;
-
-					var worldAlpha = alpha * renderParent.__worldAlpha;
-					__worldAlphaChanged = (__worldAlpha != worldAlpha);
-					__worldAlpha = worldAlpha;
-				}
-				else
-				{
-					__worldAlpha = alpha * renderParent.__worldAlpha;
-				}
+				__worldAlpha = alpha * renderParent.__worldAlpha;
 
 				if (__objectTransform != null)
 				{
@@ -1803,14 +1776,6 @@ class DisplayObject extends EventDispatcher implements IBitmapDrawable #if (open
 			else
 			{
 				__worldAlpha = alpha;
-
-				if (__supportDOM)
-				{
-					__worldVisibleChanged = (__worldVisible != __visible);
-					__worldVisible = __visible;
-
-					__worldAlphaChanged = (__worldAlpha != alpha);
-				}
 
 				if (__objectTransform != null)
 				{
@@ -2019,8 +1984,7 @@ class DisplayObject extends EventDispatcher implements IBitmapDrawable #if (open
 		{
 			return value;
 		}
-
-		if (value != __mask)
+		else
 		{
 			__setTransformDirty();
 			__setRenderDirty();
