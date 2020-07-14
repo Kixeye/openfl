@@ -494,35 +494,8 @@ class SimpleButton extends InteractiveObject
 			value.parent.removeChild(value);
 		}
 
-		// #if (openfl_html5 && dom)
-		#if openfl_html5
-		if (DisplayObject.__supportDOM && __previousStates == null)
-		{
-			__previousStates = new Vector<DisplayObject>();
-		}
-		#end
-
 		if (value != __currentState)
 		{
-			// #if (openfl_html5 && dom)
-			#if openfl_html5
-			if (DisplayObject.__supportDOM)
-			{
-				if (__currentState != null)
-				{
-					__currentState.__setStageReference(null);
-					__previousStates.push(__currentState);
-				}
-
-				var index = __previousStates.indexOf(value);
-
-				if (index > -1)
-				{
-					__previousStates.splice(index, 1);
-				}
-			}
-			#end
-
 			if (value != null)
 			{
 				value.__renderParent = this;

@@ -1,23 +1,20 @@
 package openfl._internal.renderer.kixeye;
 
-import openfl._internal.backend.gl.WebGLRenderingContext;
 import openfl.geom.Rectangle;
 import openfl.geom.Matrix;
 
 @:access(openfl.geom.Matrix)
+@:access(openfl._internal.renderer.kixeye.KxRenderer)
 class KxClipRectStack
 {
-	private var _gl:WebGLRenderingContext;
+	private var _renderer:KxRenderer;
 	private var _rects:Array<KxRect> = [new KxRect()];
 	private var _size:Int = 0;
 	private var _current:Int = -1;
-	private var _scale:Float;
-	private var _height:Float;
 
-	public function new(gl:WebGLRenderingContext, scale:Float)
+	public function new(renderer:KxRenderer)
 	{
-		_gl = gl;
-		_scale = scale;
+		_renderer = renderer;
 	}
 
 	public function top():Int
@@ -31,7 +28,6 @@ class KxClipRectStack
 		_current = -1;
 		var rect = _rects[0];
 		rect.set(x, y, w, h);
-		_height = rect.h / _scale;
 	}
 
 	public function push(r:Rectangle, t:Matrix):Void
@@ -41,8 +37,13 @@ class KxClipRectStack
 			_rects.push(new KxRect());
 		}
 		var rect:KxRect = _rects[_size];
-		rect.transform(r, t);
-		rect.scale(_scale);
+
+		var m = Matrix.__pool.get();
+		m.copyFrom(t);
+		m.concat(_renderer.__worldTransform);
+		rect.transform(r, m);
+		Matrix.__pool.release(m);
+
 		if (_size > 0)
 		{
 			rect.clip(_rects[_size - 1]);
@@ -57,14 +58,15 @@ class KxClipRectStack
 
 	public function scissor(index:Int):Bool
 	{
-		var rect = _rects[index];
-		if (rect.area() <= 0)
+		if (_rects.length <= index || _rects[index].area() < 0)
 		{
 			return false;
 		}
 		if (_current != index)
 		{
-			_gl.scissor(Std.int(rect.x), Std.int(_height - (rect.y + rect.h)), Std.int(rect.w), Std.int(rect.h));
+			var r = _rects[index];
+			var h = _renderer._height;
+			_renderer.gl.scissor(Std.int(r.x), Std.int(h - (r.y + r.h)), Std.int(r.w), Std.int(r.h));
 			_current = index;
 		}
 		return true;
@@ -115,15 +117,10 @@ private class KxRect
 		var right = r.x + r.width;
 		var bottom = r.y + r.height;
 
-		var x0 = m.__transformX(r.x, r.y);
-		var y0 = m.__transformY(r.x, r.y);
-		var x1 = m.__transformX(right, bottom);
-		var y1 = m.__transformY(right, bottom);
-
-		x = Math.min(x0, x1);
-		y = Math.min(y0, y1);
-		w = Math.abs(x1 - x0);
-		h = Math.abs(y1 - y0);
+		x = m.__transformX(r.x, r.y);
+		y = m.__transformY(r.x, r.y);
+		w = m.__transformX(right, bottom) - x;
+		h = m.__transformY(right, bottom) - y;
 	}
 
 	public function copyFrom(r:KxRect):Void

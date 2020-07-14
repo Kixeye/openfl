@@ -183,9 +183,6 @@ class DisplayObject extends EventDispatcher implements IBitmapDrawable #if (open
 	@:noCompletion private static var __initStage:Stage;
 	@:noCompletion private static var __instanceCount:Int = 0;
 
-	@:noCompletion
-	private static #if !js inline #end var __supportDOM:Bool #if !js = false #end;
-
 	@:noCompletion private static var __tempStack:ObjectPool<Vector<DisplayObject>> = new ObjectPool<Vector<DisplayObject>>(function() return
 		new Vector<DisplayObject>(), function(stack) stack.length = 0);
 
@@ -2172,11 +2169,6 @@ class DisplayObject extends EventDispatcher implements IBitmapDrawable #if (open
 		}
 
 		__setTransformDirty();
-
-		if (__supportDOM)
-		{
-			__setRenderDirty();
-		}
 
 		return value;
 	}

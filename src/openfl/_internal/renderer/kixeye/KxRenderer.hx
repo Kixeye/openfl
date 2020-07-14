@@ -149,7 +149,7 @@ class KxRenderer extends DisplayObjectRenderer
 		_defaultTexture.bind(_maskUnit, false);
 		_viewUniform = _shader.getUniform("u_view");
 
-		_clipRects = new KxClipRectStack(gl, _pixelRatio);
+		_clipRects = new KxClipRectStack(this);
 		_masks = new KxMaskStack(gl, _softwareRenderer, _maskUnit);
 		_tilemapRenderer = new KxTilemapRenderer(this);
 		_filterRenderer = new KxFilterRenderer(gl);
@@ -647,7 +647,7 @@ private class Command
 private class QuadShader
 {
 	public static inline var VERTEX:String = '
-		precision highp float;
+		precision mediump float;
 
 		uniform mat3 u_view;
 
@@ -662,7 +662,8 @@ private class QuadShader
 		varying vec4 v_colorOffset;
 		varying float v_textureId;
 
-		void main(void) {
+		void main(void)
+		{
 			v_uv = a_uv;
 			v_colorMult = a_colorMult;
 			v_colorOffset = a_colorOffset / 255.0;
@@ -674,7 +675,7 @@ private class QuadShader
 	';
 
 	public static inline var FRAGMENT:String = '
-		precision highp float;
+		precision mediump float;
 
 		varying vec4 v_uv;
 		varying vec4 v_colorMult;
@@ -698,28 +699,27 @@ private class QuadShader
 		uniform sampler2D u_sampler14;
 		uniform sampler2D u_mask;
 
-		void main(void) {
-			vec2 uv = v_uv.xy;
-			vec2 muv = v_uv.zw;
+		void main(void)
+		{
 			vec4 color;
 
-			if (v_textureId == 0.0) color = texture2D(u_sampler0, uv);
-			else if (v_textureId == 1.0) color = texture2D(u_sampler1, uv);
-			else if (v_textureId == 2.0) color = texture2D(u_sampler2, uv);
-			else if (v_textureId == 3.0) color = texture2D(u_sampler3, uv);
-			else if (v_textureId == 4.0) color = texture2D(u_sampler4, uv);
-			else if (v_textureId == 5.0) color = texture2D(u_sampler5, uv);
-			else if (v_textureId == 6.0) color = texture2D(u_sampler6, uv);
-			else if (v_textureId == 7.0) color = texture2D(u_sampler7, uv);
-			else if (v_textureId == 8.0) color = texture2D(u_sampler8, uv);
-			else if (v_textureId == 9.0) color = texture2D(u_sampler9, uv);
-			else if (v_textureId == 10.0) color = texture2D(u_sampler10, uv);
-			else if (v_textureId == 11.0) color = texture2D(u_sampler11, uv);
-			else if (v_textureId == 12.0) color = texture2D(u_sampler12, uv);
-			else if (v_textureId == 13.0) color = texture2D(u_sampler13, uv);
-			else if (v_textureId == 14.0) color = texture2D(u_sampler14, uv);
+			if (v_textureId == 0.0) color = texture2D(u_sampler0, v_uv.xy);
+			else if (v_textureId == 1.0) color = texture2D(u_sampler1, v_uv.xy);
+			else if (v_textureId == 2.0) color = texture2D(u_sampler2, v_uv.xy);
+			else if (v_textureId == 3.0) color = texture2D(u_sampler3, v_uv.xy);
+			else if (v_textureId == 4.0) color = texture2D(u_sampler4, v_uv.xy);
+			else if (v_textureId == 5.0) color = texture2D(u_sampler5, v_uv.xy);
+			else if (v_textureId == 6.0) color = texture2D(u_sampler6, v_uv.xy);
+			else if (v_textureId == 7.0) color = texture2D(u_sampler7, v_uv.xy);
+			else if (v_textureId == 8.0) color = texture2D(u_sampler8, v_uv.xy);
+			else if (v_textureId == 9.0) color = texture2D(u_sampler9, v_uv.xy);
+			else if (v_textureId == 10.0) color = texture2D(u_sampler10, v_uv.xy);
+			else if (v_textureId == 11.0) color = texture2D(u_sampler11, v_uv.xy);
+			else if (v_textureId == 12.0) color = texture2D(u_sampler12, v_uv.xy);
+			else if (v_textureId == 13.0) color = texture2D(u_sampler13, v_uv.xy);
+			else if (v_textureId == 14.0) color = texture2D(u_sampler14, v_uv.xy);
 
-			vec4 mask = texture2D(u_mask, muv);
+			vec4 mask = texture2D(u_mask, v_uv.zw);
 
 			color.rgb /= color.a;
 			color = clamp((color * v_colorMult) + v_colorOffset, 0.0, 1.0);

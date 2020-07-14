@@ -2209,12 +2209,7 @@ class TextField extends InteractiveObject
 			__selectionIndex = __caretIndex;
 		}
 
-		var enableInput = #if openfl_html5 (DisplayObject.__supportDOM ? __renderedOnCanvasWhileOnDOM : true) #else true #end;
-
-		if (enableInput)
-		{
-			__enableInput();
-		}
+		__enableInput();
 	}
 
 	@:noCompletion private function __stopCursorTimer():Void
@@ -2235,12 +2230,7 @@ class TextField extends InteractiveObject
 
 	@:noCompletion private function __stopTextInput():Void
 	{
-		var disableInput = #if openfl_html5 (DisplayObject.__supportDOM ? __renderedOnCanvasWhileOnDOM : true) #else true #end;
-
-		if (disableInput)
-		{
-			__disableInput();
-		}
+		__disableInput();
 	}
 
 	@:noCompletion private function __updateLayout():Void
@@ -2358,13 +2348,6 @@ class TextField extends InteractiveObject
 
 	@:noCompletion private function __updateText(value:String):Void
 	{
-		#if openfl_html5
-		if (DisplayObject.__supportDOM && __renderedOnCanvasWhileOnDOM)
-		{
-			__forceCachedBitmapUpdate = __text != value;
-		}
-		#end
-
 		// applies maxChars and restrict on text
 
 		__textEngine.text = value;
@@ -2375,7 +2358,7 @@ class TextField extends InteractiveObject
 			__selectionIndex = __caretIndex = __text.length;
 		}
 
-		if (!__displayAsPassword #if openfl_html5 || (DisplayObject.__supportDOM && !__renderedOnCanvasWhileOnDOM) #end)
+		if (!__displayAsPassword)
 		{
 			__textEngine.text = __text;
 		}
@@ -2625,36 +2608,7 @@ class TextField extends InteractiveObject
 
 		value = HTMLParser.parse(value, __textFormat, __textEngine.textFormatRanges);
 
-		#if openfl_html5
-		if (DisplayObject.__supportDOM)
-		{
-			if (__textEngine.textFormatRanges.length > 1)
-			{
-				__textEngine.textFormatRanges.splice(1, __textEngine.textFormatRanges.length - 1);
-			}
-
-			var range = __textEngine.textFormatRanges[0];
-			range.format = __textFormat;
-			range.start = 0;
-
-			if (__renderedOnCanvasWhileOnDOM)
-			{
-				range.end = value.length;
-				__updateText(value);
-			}
-			else
-			{
-				range.end = __rawHtmlText.length;
-				__updateText(__rawHtmlText);
-			}
-		}
-		else
-		{
-			__updateText(value);
-		}
-		#else
 		__updateText(value);
-		#end
 		__updateScrollV();
 
 		return value;
@@ -3029,20 +2983,8 @@ class TextField extends InteractiveObject
 			{
 				__caretIndex = position;
 
-				#if openfl_html5
-				if (DisplayObject.__supportDOM)
-				{
-					if (__renderedOnCanvasWhileOnDOM)
-					{
-						__forceCachedBitmapUpdate = true;
-					}
-				}
-				else
-				#end
-				{
-					__dirty = true;
-					__setRenderDirty();
-				}
+				__dirty = true;
+				__setRenderDirty();
 			}
 		}
 	}
@@ -3075,13 +3017,6 @@ class TextField extends InteractiveObject
 
 				__stopCursorTimer();
 				__startCursorTimer();
-
-				#if openfl_html5
-				if (DisplayObject.__supportDOM && __renderedOnCanvasWhileOnDOM)
-				{
-					__forceCachedBitmapUpdate = true;
-				}
-				#end
 			}
 		}
 	}
@@ -3152,11 +3087,8 @@ class TextField extends InteractiveObject
 		__caretIndex = __getPosition(mouseX + scrollH, mouseY);
 		__selectionIndex = __caretIndex;
 
-		if (!DisplayObject.__supportDOM)
-		{
-			__dirty = true;
-			__setRenderDirty();
-		}
+		__dirty = true;
+		__setRenderDirty();
 
 		stage.addEventListener(MouseEvent.MOUSE_MOVE, stage_onMouseMove);
 		stage.addEventListener(MouseEvent.MOUSE_UP, stage_onMouseUp);
