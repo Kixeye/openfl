@@ -149,7 +149,7 @@ class KxRenderer extends DisplayObjectRenderer
 		_defaultTexture.bind(_maskUnit, false);
 		_viewUniform = _shader.getUniform("u_view");
 
-		_clipRects = new KxClipRectStack(gl);
+		_clipRects = new KxClipRectStack(gl, _pixelRatio);
 		_masks = new KxMaskStack(gl, _softwareRenderer, _maskUnit);
 		_tilemapRenderer = new KxTilemapRenderer(this);
 		_filterRenderer = new KxFilterRenderer(gl);
@@ -190,7 +190,7 @@ class KxRenderer extends DisplayObjectRenderer
 	private override function __render(object:IBitmapDrawable):Void
 	{
 		_beginFrame();
-		_renderRecursive(object);
+		_renderRecursive(cast object);
 		_endFrame();
 	}
 
@@ -219,9 +219,8 @@ class KxRenderer extends DisplayObjectRenderer
 		var quads = 0;
 		for (cmd in _commands)
 		{
-			if (_clipRects.valid(cmd.clipRect))
+			if (_clipRects.scissor(cmd.clipRect))
 			{
-				_clipRects.scissor(cmd.clipRect, _heightScaled);
 				_setBlendMode(cmd.blendMode);
 				for (i in 0...cmd.textures.length)
 				{
@@ -259,17 +258,13 @@ class KxRenderer extends DisplayObjectRenderer
 		}
 	}
 
-	private function _renderRecursive(drawable:IBitmapDrawable):Void
+	private function _renderRecursive(object:DisplayObject):Void
 	{
-		if (drawable == null)
-		{
-			return;
-		}
-		var object:DisplayObject = cast drawable;
 		if (!object.__worldVisible || !object.__renderable || object.__worldAlpha <= 0.0)
 		{
 			return;
 		}
+
 		if (object.__scrollRect != null)
 		{
 			_clipRects.push(object.__scrollRect, object.__renderTransform);
@@ -278,6 +273,7 @@ class KxRenderer extends DisplayObjectRenderer
 		{
 			_masks.push(object.__mask);
 		}
+
 		_renderObject(object);
 		if (object.__type == DISPLAY_OBJECT_CONTAINER)
 		{
@@ -287,6 +283,7 @@ class KxRenderer extends DisplayObjectRenderer
 				_renderRecursive(child);
 			}
 		}
+
 		if (object.__scrollRect != null)
 		{
 			_clipRects.pop();

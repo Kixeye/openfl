@@ -4,16 +4,20 @@ import openfl._internal.backend.gl.WebGLRenderingContext;
 import openfl.geom.Rectangle;
 import openfl.geom.Matrix;
 
+@:access(openfl.geom.Matrix)
 class KxClipRectStack
 {
 	private var _gl:WebGLRenderingContext;
 	private var _rects:Array<KxRect> = [new KxRect()];
 	private var _size:Int = 0;
 	private var _current:Int = -1;
+	private var _scale:Float;
+	private var _height:Float;
 
-	public function new(gl:WebGLRenderingContext)
+	public function new(gl:WebGLRenderingContext, scale:Float)
 	{
 		_gl = gl;
+		_scale = scale;
 	}
 
 	public function top():Int
@@ -25,7 +29,9 @@ class KxClipRectStack
 	{
 		_size = 1;
 		_current = -1;
-		_rects[0].set(x, y, w, h);
+		var rect = _rects[0];
+		rect.set(x, y, w, h);
+		_height = rect.h / _scale;
 	}
 
 	public function push(r:Rectangle, t:Matrix):Void
@@ -36,6 +42,7 @@ class KxClipRectStack
 		}
 		var rect:KxRect = _rects[_size];
 		rect.transform(r, t);
+		rect.scale(_scale);
 		if (_size > 0)
 		{
 			rect.clip(_rects[_size - 1]);
@@ -48,19 +55,19 @@ class KxClipRectStack
 		--_size;
 	}
 
-	public function valid(index:Int):Bool
+	public function scissor(index:Int):Bool
 	{
-		return _rects[index].area() > 0;
-	}
-
-	public function scissor(index:Int, h:Float):Void
-	{
+		var rect = _rects[index];
+		if (rect.area() <= 0)
+		{
+			return false;
+		}
 		if (_current != index)
 		{
-			var r:KxRect = _rects[index];
-			_gl.scissor(Std.int(r.x), Std.int(h - (r.y + r.h)), Std.int(r.w), Std.int(r.h));
+			_gl.scissor(Std.int(rect.x), Std.int(_height - (rect.y + rect.h)), Std.int(rect.w), Std.int(rect.h));
 			_current = index;
 		}
+		return true;
 	}
 
 	public function intersects(vertices:Array<Float>):Bool
@@ -108,36 +115,15 @@ private class KxRect
 		var right = r.x + r.width;
 		var bottom = r.y + r.height;
 
-		var tx0 = m.a * r.x + m.c * r.y;
-		var tx1 = tx0;
-		var ty0 = m.b * r.x + m.d * r.y;
-		var ty1 = ty0;
+		var x0 = m.__transformX(r.x, r.y);
+		var y0 = m.__transformY(r.x, r.y);
+		var x1 = m.__transformX(right, bottom);
+		var y1 = m.__transformY(right, bottom);
 
-		var tx = m.a * right + m.c * r.y;
-		var ty = m.b * right + m.d * r.y;
-
-		if (tx < tx0) tx0 = tx;
-		if (ty < ty0) ty0 = ty;
-		if (tx > tx1) tx1 = tx;
-		if (ty > ty1) ty1 = ty;
-
-		tx = m.a * right + m.c * bottom;
-		ty = m.b * right + m.d * bottom;
-
-		if (tx < tx0) tx0 = tx;
-		if (ty < ty0) ty0 = ty;
-		if (tx > tx1) tx1 = tx;
-		if (ty > ty1) ty1 = ty;
-
-		tx = m.a * r.x + m.c * bottom;
-		ty = m.b * r.x + m.d * bottom;
-
-		if (tx < tx0) tx0 = tx;
-		if (ty < ty0) ty0 = ty;
-		if (tx > tx1) tx1 = tx;
-		if (ty > ty1) ty1 = ty;
-
-		set(tx0 + m.tx, ty0 + m.ty, tx1 - tx0, ty1 - ty0);
+		x = Math.min(x0, x1);
+		y = Math.min(y0, y1);
+		w = Math.abs(x1 - x0);
+		h = Math.abs(y1 - y0);
 	}
 
 	public function copyFrom(r:KxRect):Void
@@ -169,8 +155,6 @@ private class KxRect
 
 	public function clip(r:KxRect):Void
 	{
-		if (w <= 0 || h <= 0) return;
-
 		if (x < r.x)
 		{
 			w -= r.x - x;
@@ -188,6 +172,14 @@ private class KxRect
 		if (y + h > r.y + r.h)
 		{
 			h -= (y + h) - (r.y + r.h);
+		}
+		if (w < 0)
+		{
+			w = 0;
+		}
+		if (h < 0)
+		{
+			h = 0;
 		}
 	}
 }

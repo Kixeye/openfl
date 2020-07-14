@@ -1904,11 +1904,6 @@ import openfl._internal.renderer.cairo.CairoGraphics;
 		scaleX *= pixelRatio;
 		scaleY *= pixelRatio;
 
-		#if openfl_disable_graphics_upscaling
-		if (scaleX > 1) scaleX = 1;
-		if (scaleY > 1) scaleY = 1;
-		#end
-
 		var width = __bounds.width * scaleX;
 		var height = __bounds.height * scaleY;
 
@@ -1960,15 +1955,13 @@ import openfl._internal.renderer.cairo.CairoGraphics;
 		// We used to add tx and ty from __renderTransform instead of 1.0
 		// but it improves performance if we keep the size consistent when the
 		// extra pixel isn't needed
-		var newWidth = Math.ceil(width + 1.0);
-		var newHeight = Math.ceil(height + 1.0);
+		var newWidth = Math.ceil(width);
+		var newHeight = Math.ceil(height);
 
 		// Mark dirty if render size changed
-		if (!__almostEquals(newWidth, __width, 1.5) || !__almostEquals(newHeight, __height, 1.5))
+		if (newWidth != __width || newHeight != __height)
 		{
-			#if !openfl_disable_graphics_upscaling
 			__dirty = true;
-			#end
 		}
 
 		__width = newWidth;
