@@ -118,11 +118,10 @@ class KxRenderer extends DisplayObjectRenderer
 
 		// initial GL state
 		gl.disable(gl.DEPTH_TEST);
-		gl.enable(gl.SCISSOR_TEST);
 		gl.disable(gl.STENCIL_TEST);
+		gl.enable(gl.SCISSOR_TEST);
 		gl.enable(gl.BLEND);
 		gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-		gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
 
 		_defaultTexture = new KxTexture(gl, null);
 		_defaultTexture.uploadDefault();
@@ -134,7 +133,7 @@ class KxRenderer extends DisplayObjectRenderer
 		_vertices.attribute("a_colorOffset", 4, false);
 		_vertices.attribute("a_textureId", 1, false);
 		_vertexStride = _vertices.commit(MAX_VERTICES, MAX_INDICES);
-		_vertexCache = [for (i in 0..._vertexStride * 4) 0];
+		_vertexCache = [for (i in 0..._vertexStride * 4) 0.0];
 
 		_shader = new KxShader(gl);
 		_shader.compile(QuadShader.VERTEX, QuadShader.FRAGMENT);
@@ -142,14 +141,16 @@ class KxRenderer extends DisplayObjectRenderer
 		_shader.use();
 		for (i in 0..._maxTextureUnits)
 		{
-			gl.uniform1i(_shader.getUniform("u_sampler" + i), i);
+			var uniform = _shader.getUniform("u_sampler" + i);
+			gl.uniform1i(uniform, i);
 			_defaultTexture.bind(i, false);
 		}
 		gl.uniform1i(_shader.getUniform("u_mask"), _maskUnit);
+		_defaultTexture.bind(_maskUnit, false);
 		_viewUniform = _shader.getUniform("u_view");
 
 		_clipRects = new KxClipRectStack(gl);
-		_masks = new KxMaskStack(gl, _softwareRenderer);
+		_masks = new KxMaskStack(gl, _softwareRenderer, _maskUnit);
 		_tilemapRenderer = new KxTilemapRenderer(this);
 		_filterRenderer = new KxFilterRenderer(gl);
 	}
@@ -212,7 +213,6 @@ class KxRenderer extends DisplayObjectRenderer
 
 		_shader.use();
 		_shader.updateUniformMat3(_viewUniform, _viewMatrix.toArray());
-
 		_vertices.enable();
 
 		var drawCalls = 0;
@@ -228,7 +228,7 @@ class KxRenderer extends DisplayObjectRenderer
 					var texture = cmd.textures[i];
 					texture.bind(i, true);
 				}
-				_masks.bind(cmd.mask, _maskUnit);
+				_masks.bind(cmd.mask);
 				_vertices.draw(cmd.offset, cmd.count);
 				++drawCalls;
 			}
@@ -500,20 +500,6 @@ class KxRenderer extends DisplayObjectRenderer
 		}
 	}
 
-	/*
-
-	@:noCompletion private inline function __transformX(px:Float, py:Float):Float
-	{
-		return px * a + py * c + tx;
-	}
-
-	@:noCompletion private inline function __transformY(px:Float, py:Float):Float
-	{
-		return px * b + py * d + ty;
-	}
-
-	*/
-
 	public function _setVertices(transform:Matrix, x:Float, y:Float, w:Float, h:Float):Void
 	{
 		var r = x + w;
@@ -713,7 +699,6 @@ private class QuadShader
 		uniform sampler2D u_sampler12;
 		uniform sampler2D u_sampler13;
 		uniform sampler2D u_sampler14;
-
 		uniform sampler2D u_mask;
 
 		void main(void) {

@@ -68,9 +68,20 @@ class KxShader implements KxGLResource
 			_gl.bindAttribLocation(_program, index, attr.name);
 			++index;
 		}
+		_gl.linkProgram(_program);
+
+		var success = _gl.getProgramParameter(_program, _gl.LINK_STATUS);
+		if (!success)
+		{
+			trace("Program failed to link.");
+			trace(_gl.getProgramInfoLog(_program));
+
+			_gl.deleteProgram(_program);
+			_program = null;
+		}
 	}
 
-	public function compile(vert:String, frag:String):Bool
+	public function compile(vert:String, frag:String):Void
 	{
 		var vertShader = compileShader(vert, _gl.VERTEX_SHADER);
 		var fragShader = compileShader(frag, _gl.FRAGMENT_SHADER);
@@ -80,25 +91,7 @@ class KxShader implements KxGLResource
 			_program = _gl.createProgram();
 			_gl.attachShader(_program, vertShader);
 			_gl.attachShader(_program, fragShader);
-			_gl.linkProgram(_program);
-
-			var success = _gl.getProgramParameter(_program, _gl.LINK_STATUS);
-			if (!success)
-			{
-				trace("Program failed to link.");
-				trace(_gl.getProgramInfoLog(_program));
-
-				_gl.deleteProgram(_program);
-				_program = null;
-
-				return false;
-			}
-			else
-			{
-				return true;
-			}
 		}
-		return false;
 	}
 
 	private function compileShader(source:String, type:Int):Shader
