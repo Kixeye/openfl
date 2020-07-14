@@ -1,5 +1,6 @@
 package openfl._internal.renderer.kixeye;
 
+import lime.utils.Float32Array;
 import haxe.macro.Expr.Error;
 import openfl.display3D.textures.TextureBase;
 import js.html.webgl.UniformLocation;
@@ -37,6 +38,21 @@ class KxShader implements KxGLResource
 	public function updateUniform2(loc:UniformLocation, x:Float, y:Float):Void
 	{
 		_gl.uniform2f(loc, x, y);
+	}
+
+	public function updateUniform3(loc:UniformLocation, x:Float, y:Float, z:Float):Void
+	{
+		_gl.uniform3f(loc, x, y, z);
+	}
+
+	public function updateUniform4(loc:UniformLocation, x:Float, y:Float, z:Float, w:Float):Void
+	{
+		_gl.uniform4f(loc, x, y, z, w);
+	}
+
+	public function updateUniformMat3(loc:UniformLocation, mat:Float32Array):Void
+	{
+		_gl.uniformMatrix3fv(loc, false, mat);
 	}
 
 	public function getUniform(name:String):UniformLocation

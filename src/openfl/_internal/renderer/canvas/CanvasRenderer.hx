@@ -582,6 +582,7 @@ class CanvasRenderer extends CanvasRendererAPI
 		return false;
 		#end
 
+		#if !kixeye
 		if (object.__isCacheBitmapRender) return false;
 		var updated = false;
 
@@ -945,6 +946,9 @@ class CanvasRenderer extends CanvasRendererAPI
 		}
 
 		return updated;
+		#else
+		return false;
+		#end
 		#else
 		return false;
 		#end

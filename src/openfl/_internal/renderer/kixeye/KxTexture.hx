@@ -1,9 +1,9 @@
 package openfl._internal.renderer.kixeye;
 
-import lime.utils.Bytes;
-import lime.utils.UInt8Array;
 import js.html.webgl.Texture;
 import js.html.VideoElement;
+import lime.utils.Bytes;
+import lime.utils.UInt8Array;
 import lime.graphics.Image;
 import openfl._internal.renderer.SamplerState;
 import openfl._internal.backend.gl.WebGLRenderingContext;
@@ -40,6 +40,8 @@ class KxTexture implements KxGLResource
 		gl.bindTexture(gl.TEXTURE_2D, _texture);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, smooth ? gl.LINEAR : gl.NEAREST);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, smooth ? gl.LINEAR : gl.NEAREST);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 	}
 
 	public function upload(image:Image):Void

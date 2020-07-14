@@ -1181,8 +1181,8 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 		#if (lime && !display)
 		var pixelRatio:Float = window.scale;
 
-		var windowWidth = Std.int(window.width * window.scale);
-		var windowHeight = Std.int(window.height * window.scale);
+		var windowWidth = Std.int(window.width * pixelRatio);
+		var windowHeight = Std.int(window.height * pixelRatio);
 
 		switch (window.context.type)
 		{
@@ -3043,14 +3043,6 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 
 				if (updateChildren)
 				{
-					// #if dom
-					if (DisplayObject.__supportDOM)
-					{
-						__wasDirty = true;
-					}
-
-					// #end
-
 					// __dirty = false;
 				}
 			}

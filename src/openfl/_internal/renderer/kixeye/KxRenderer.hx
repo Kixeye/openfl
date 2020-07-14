@@ -1,7 +1,10 @@
 package openfl._internal.renderer.kixeye;
 
+#if kixeye
 import js.html.webgl.UniformLocation;
+#end
 
+import lime.math.Matrix3;
 import haxe.io.Int32Array;
 import openfl._internal.backend.gl.WebGLRenderingContext;
 import openfl._internal.backend.utils.Float32Array;
@@ -57,6 +60,7 @@ class KxRenderer extends DisplayObjectRenderer
 	private var _height:Float;
 	private var _widthScaled:Float;
 	private var _heightScaled:Float;
+	private var _viewMatrix:Matrix = new Matrix();
 
 	private var _shader:KxShader;
 	private var _viewUniform:UniformLocation;
@@ -93,8 +97,8 @@ class KxRenderer extends DisplayObjectRenderer
 		_pixelRatio = pixelRatio;
 		_softwareRenderer = new CanvasRenderer(null);
 		_softwareRenderer.pixelRatio = pixelRatio;
-		_softwareRenderer.__worldTransform = new Matrix();
-		_softwareRenderer.__worldColorTransform = new ColorTransform();
+		_softwareRenderer.__worldTransform = __worldTransform;
+		_softwareRenderer.__worldColorTransform = __worldColorTransform;
 
 		var glslVersion = gl.getParameter(gl.SHADING_LANGUAGE_VERSION);
 		trace("Shading language version: " + glslVersion);
@@ -145,7 +149,7 @@ class KxRenderer extends DisplayObjectRenderer
 		_viewUniform = _shader.getUniform("u_view");
 
 		_clipRects = new KxClipRectStack(gl);
-		_masks = new KxMaskStack(gl);
+		_masks = new KxMaskStack(gl, _softwareRenderer);
 		_tilemapRenderer = new KxTilemapRenderer(this);
 		_filterRenderer = new KxFilterRenderer(gl);
 	}
@@ -172,12 +176,19 @@ class KxRenderer extends DisplayObjectRenderer
 		_height = height;
 		_widthScaled = _width * _pixelRatio;
 		_heightScaled = _height * _pixelRatio;
+
+		var offset = (1.0 - _pixelRatio) * 2.0 / _pixelRatio;
+
+		_viewMatrix.setTo(
+			2 / _width, 0,
+			0, -2 / _height,
+			-1, 1 + offset
+		);
 	}
 
 	private override function __render(object:IBitmapDrawable):Void
 	{
 		_beginFrame();
-		_nodesVisited = 0;
 		_renderRecursive(object);
 		_endFrame();
 	}
@@ -186,7 +197,9 @@ class KxRenderer extends DisplayObjectRenderer
 	{
 		_commands = [];
 		_vertices.begin();
-		_clipRects.init(0, 0, _widthScaled, _heightScaled);
+		_clipRects.begin(0, 0, _widthScaled, _heightScaled);
+		_masks.begin();
+		_nodesVisited = 0;
 	}
 
 	private function _endFrame():Void
@@ -198,7 +211,7 @@ class KxRenderer extends DisplayObjectRenderer
 		gl.clear(gl.COLOR_BUFFER_BIT);
 
 		_shader.use();
-		_shader.updateUniform2(_viewUniform, _width, _height);
+		_shader.updateUniformMat3(_viewUniform, _viewMatrix.toArray());
 
 		_vertices.enable();
 
@@ -299,33 +312,36 @@ class KxRenderer extends DisplayObjectRenderer
 
 		_drawCacheBitmap(object);
 
-		if (object.__cacheBitmapData != null)
+		if (object.__renderTarget != null)
 		{
-			_pushQuad(object, object.__cacheBitmapData.getTexture(gl), object.__cacheBitmapMatrix);
+			_pushQuad(object, object.__renderTarget.getTexture(), object.__renderTargetMatrix);
 		}
-		if (object.__graphics != null && object.__graphics.__visible && object.__graphics.__bitmap != null)
+		else
 		{
-			_pushQuad(object, object.__graphics.__bitmap.getTexture(gl), object.__graphics.__worldTransform);
-		}
-		if (object.__type == BITMAP)
-		{
-			var bmp:Bitmap = cast object;
-			if (bmp.__bitmapData != null)
+			if (object.__graphics != null && object.__graphics.__visible && object.__graphics.__bitmap != null)
 			{
-				_pushQuad(bmp, bmp.__bitmapData.getTexture(gl), bmp.__renderTransform);
+				_pushQuad(object, object.__graphics.__bitmap.getTexture(gl), object.__graphics.__worldTransform);
 			}
-		}
-		else if (object.__type == TILEMAP)
-		{
-			_tilemapRenderer.render(cast object);
-		}
-		else if (object.__type == VIDEO)
-		{
-			var video:Video = cast object;
-			var texture = video.__getTexture(gl);
-			if (texture != null)
+			if (object.__type == BITMAP)
 			{
-				_pushQuad(video, texture, video.__renderTransform);
+				var bmp:Bitmap = cast object;
+				if (bmp.__bitmapData != null)
+				{
+					_pushQuad(bmp, bmp.__bitmapData.getTexture(gl), bmp.__renderTransform);
+				}
+			}
+			else if (object.__type == TILEMAP)
+			{
+				_tilemapRenderer.render(cast object);
+			}
+			else if (object.__type == VIDEO)
+			{
+				var video:Video = cast object;
+				var texture = video.__getTexture(gl);
+				if (texture != null)
+				{
+					_pushQuad(video, texture, video.__renderTransform);
+				}
 			}
 		}
 	}
@@ -484,6 +500,20 @@ class KxRenderer extends DisplayObjectRenderer
 		}
 	}
 
+	/*
+
+	@:noCompletion private inline function __transformX(px:Float, py:Float):Float
+	{
+		return px * a + py * c + tx;
+	}
+
+	@:noCompletion private inline function __transformY(px:Float, py:Float):Float
+	{
+		return px * b + py * d + ty;
+	}
+
+	*/
+
 	public function _setVertices(transform:Matrix, x:Float, y:Float, w:Float, h:Float):Void
 	{
 		var r = x + w;
@@ -549,7 +579,7 @@ class KxRenderer extends DisplayObjectRenderer
 		// }
 		texture = (texture != null && texture.valid) ? texture : _defaultTexture;
 
-		var textureUnit = -1;
+		var textureUnit:Int = -1;
 		var cmd:Command = null;
 		var tail:Command = _commands.length > 0 ? _commands[_commands.length - 1] : null;
 		var newCommand:Bool = (tail == null || tail.blendMode != blendMode || tail.clipRect != _clipRects.top() || tail.mask != _masks.top());
@@ -586,25 +616,26 @@ class KxRenderer extends DisplayObjectRenderer
 		var ct = colorTransform != null ? colorTransform : IDENTITY_COLOR_TRANSFORM;
 		var alphaOffset = ct.alphaOffset * alpha;
 
+		var j = 0;
 		for (i in 0...4)
 		{
-			var j = i * _vertexStride;
-			var k = i * 2;
-			_vertexCache[j + 0 ] = _posCache[k];
-			_vertexCache[j + 1 ] = _posCache[k + 1];
-			_vertexCache[j + 2 ] = _uvs[k];
-			_vertexCache[j + 3 ] = _uvs[k + 1];
-			_vertexCache[j + 4 ] = _maskUvs[k];
-			_vertexCache[j + 5 ] = _maskUvs[k + 1];
-			_vertexCache[j + 6 ] = ct.redMultiplier;
-			_vertexCache[j + 7 ] = ct.greenMultiplier;
-			_vertexCache[j + 8 ] = ct.blueMultiplier;
-			_vertexCache[j + 9 ] = alpha;
-			_vertexCache[j + 10 ] = ct.redOffset;
-			_vertexCache[j + 11 ] = ct.greenOffset;
-			_vertexCache[j + 12] = ct.blueOffset;
-			_vertexCache[j + 13] = alphaOffset;
-			_vertexCache[j + 14] = textureUnit;
+			var k0 = i * 2;
+			var k1 = k0 + 1;
+			_vertexCache[j++] = _posCache[k0];
+			_vertexCache[j++] = _posCache[k1];
+			_vertexCache[j++] = _uvs[k0];
+			_vertexCache[j++] = _uvs[k1];
+			_vertexCache[j++] = _maskUvs[k0];
+			_vertexCache[j++] = _maskUvs[k1];
+			_vertexCache[j++] = ct.redMultiplier;
+			_vertexCache[j++] = ct.greenMultiplier;
+			_vertexCache[j++] = ct.blueMultiplier;
+			_vertexCache[j++] = alpha;
+			_vertexCache[j++] = ct.redOffset;
+			_vertexCache[j++] = ct.greenOffset;
+			_vertexCache[j++] = ct.blueOffset;
+			_vertexCache[j++] = alphaOffset;
+			_vertexCache[j++] = textureUnit;
 		}
 		_vertices.push(_vertexCache, QUAD_INDICES);
 	}
@@ -635,7 +666,7 @@ private class QuadShader
 	public static inline var VERTEX:String = '
 		precision highp float;
 
-		uniform vec2 u_view;
+		uniform mat3 u_view;
 
 		attribute vec2 a_pos;
 		attribute vec4 a_uv;
@@ -654,9 +685,8 @@ private class QuadShader
 			v_colorOffset = a_colorOffset / 255.0;
 			v_textureId = a_textureId;
 
-			vec2 p = (a_pos / u_view) * 2.0 - 1.0;
-			p.y *= -1.0;
-			gl_Position = vec4(p, 0, 1);
+			vec3 p = vec3(a_pos, 1) * u_view;
+			gl_Position = vec4(p, 1);
 		}
 	';
 
@@ -687,27 +717,25 @@ private class QuadShader
 		uniform sampler2D u_mask;
 
 		void main(void) {
-			vec4 color;
-			int textureId = int(v_textureId);
-
 			vec2 uv = v_uv.xy;
 			vec2 muv = v_uv.zw;
+			vec4 color;
 
-			if (textureId == 0) color = texture2D(u_sampler0, uv);
-			else if (textureId == 1) color = texture2D(u_sampler1, uv);
-			else if (textureId == 2) color = texture2D(u_sampler2, uv);
-			else if (textureId == 3) color = texture2D(u_sampler3, uv);
-			else if (textureId == 4) color = texture2D(u_sampler4, uv);
-			else if (textureId == 5) color = texture2D(u_sampler5, uv);
-			else if (textureId == 6) color = texture2D(u_sampler6, uv);
-			else if (textureId == 7) color = texture2D(u_sampler7, uv);
-			else if (textureId == 8) color = texture2D(u_sampler8, uv);
-			else if (textureId == 9) color = texture2D(u_sampler9, uv);
-			else if (textureId == 10) color = texture2D(u_sampler10, uv);
-			else if (textureId == 11) color = texture2D(u_sampler11, uv);
-			else if (textureId == 12) color = texture2D(u_sampler12, uv);
-			else if (textureId == 13) color = texture2D(u_sampler13, uv);
-			else if (textureId == 14) color = texture2D(u_sampler14, uv);
+			if (v_textureId == 0.0) color = texture2D(u_sampler0, uv);
+			else if (v_textureId == 1.0) color = texture2D(u_sampler1, uv);
+			else if (v_textureId == 2.0) color = texture2D(u_sampler2, uv);
+			else if (v_textureId == 3.0) color = texture2D(u_sampler3, uv);
+			else if (v_textureId == 4.0) color = texture2D(u_sampler4, uv);
+			else if (v_textureId == 5.0) color = texture2D(u_sampler5, uv);
+			else if (v_textureId == 6.0) color = texture2D(u_sampler6, uv);
+			else if (v_textureId == 7.0) color = texture2D(u_sampler7, uv);
+			else if (v_textureId == 8.0) color = texture2D(u_sampler8, uv);
+			else if (v_textureId == 9.0) color = texture2D(u_sampler9, uv);
+			else if (v_textureId == 10.0) color = texture2D(u_sampler10, uv);
+			else if (v_textureId == 11.0) color = texture2D(u_sampler11, uv);
+			else if (v_textureId == 12.0) color = texture2D(u_sampler12, uv);
+			else if (v_textureId == 13.0) color = texture2D(u_sampler13, uv);
+			else if (v_textureId == 14.0) color = texture2D(u_sampler14, uv);
 
 			vec4 mask = texture2D(u_mask, muv);
 

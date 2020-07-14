@@ -21,7 +21,7 @@ class KxClipRectStack
 		return _size - 1;
 	}
 
-	public function init(x:Float, y:Float, w:Float, h:Float)
+	public function begin(x:Float, y:Float, w:Float, h:Float)
 	{
 		_size = 1;
 		_current = -1;

@@ -6,6 +6,9 @@ import openfl._internal.backend.html5.CanvasElement;
 import openfl._internal.backend.html5.CanvasRenderingContext2D;
 import openfl._internal.backend.html5.CSSStyleDeclaration;
 import openfl._internal.renderer.DisplayObjectType;
+#if kixeye
+import openfl._internal.renderer.kixeye.KxRenderTarget;
+#end
 import openfl._internal.utils.ObjectPool;
 import openfl._internal.Lib;
 import openfl.errors.TypeError;
@@ -890,16 +893,12 @@ class DisplayObject extends EventDispatcher implements IBitmapDrawable #if (open
 	@:noCompletion private var __cacheAsBitmap:Bool;
 	@:noCompletion private var __cacheAsBitmapMatrix:Matrix;
 
-	@:noCompletion private var __cacheBitmap:Bitmap;
-	@:noCompletion private var __cacheBitmapBackground:Null<Int>;
-	@:noCompletion private var __cacheBitmapColorTransform:ColorTransform;
-	@:noCompletion private var __cacheBitmapData:BitmapData;
-	@:noCompletion private var __cacheBitmapData2:BitmapData;
-	@:noCompletion private var __cacheBitmapData3:BitmapData;
-	@:noCompletion private var __cacheBitmapDataTexture:BitmapData;
-	@:noCompletion private var __cacheBitmapMatrix:Matrix;
-	@:noCompletion private var __cacheBitmapRendererHW:DisplayObjectRenderer;
-	@:noCompletion private var __cacheBitmapRendererSW:DisplayObjectRenderer;
+	#if kixeye
+	@:noCompletion private var __renderTarget:KxRenderTarget = null;
+	@:noCompletion private var __renderTargetMatrix:Matrix = null;
+	#end
+
+	@:noCompletion private var __cacheBitmap:Bitmap = null;
 
 	@SuppressWarnings("checkstyle:Dynamic") @:noCompletion private var __cairo:#if lime Cairo #else Dynamic #end;
 	@:noCompletion private var __children:Array<DisplayObject>;
@@ -935,8 +934,6 @@ class DisplayObject extends EventDispatcher implements IBitmapDrawable #if (open
 	@:noCompletion private var __worldAlpha:Float;
 	@:noCompletion private var __worldAlphaChanged:Bool;
 	@:noCompletion private var __worldBlendMode:BlendMode;
-	@:noCompletion private var __worldClip:Rectangle;
-	@:noCompletion private var __worldClipChanged:Bool;
 	@:noCompletion private var __worldColorTransform:ColorTransform;
 	@:noCompletion private var __worldShader:Shader;
 	@:noCompletion private var __worldScale9Grid:Rectangle;
@@ -944,7 +941,6 @@ class DisplayObject extends EventDispatcher implements IBitmapDrawable #if (open
 	@:noCompletion private var __worldVisible:Bool;
 	@:noCompletion private var __worldVisibleChanged:Bool;
 	@:noCompletion private var __worldTransformInvalid:Bool;
-	@:noCompletion private var __worldZ:Int;
 	#if openfl_html5
 	@:noCompletion private var __canvas:CanvasElement;
 	@:noCompletion private var __context:CanvasRenderingContext2D;
@@ -1376,35 +1372,13 @@ class DisplayObject extends EventDispatcher implements IBitmapDrawable #if (open
 			__graphics.__cleanup();
 		}
 
-		if (__cacheBitmap != null)
+		#if kixeye
+		if (__renderTarget != null)
 		{
-			__cacheBitmap.__cleanup();
-			__cacheBitmap = null;
+			__renderTarget.dispose();
+			__renderTarget = null;
 		}
-
-		if (__cacheBitmapDataTexture != null)
-		{
-			__cacheBitmapDataTexture.dispose();
-			__cacheBitmapDataTexture = null;
-		}
-
-		if (__cacheBitmapData != null)
-		{
-			__cacheBitmapData.dispose();
-			__cacheBitmapData = null;
-		}
-
-		if (__cacheBitmapData2 != null)
-		{
-			__cacheBitmapData2.dispose();
-			__cacheBitmapData2 = null;
-		}
-
-		if (__cacheBitmapData3 != null)
-		{
-			__cacheBitmapData3.dispose();
-			__cacheBitmapData3 = null;
-		}
+		#end
 	}
 
 	@:noCompletion private function __dispatch(event:Event):Bool
