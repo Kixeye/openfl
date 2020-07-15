@@ -30,6 +30,7 @@ import openfl.geom.Rectangle;
 import openfl.media.Video;
 
 @:access(openfl.geom.Matrix)
+@:access(openfl.geom.Rectangle)
 @:access(openfl.display.Bitmap)
 @:access(openfl.display.BitmapData)
 @:access(openfl.display.DisplayObject)
@@ -58,8 +59,6 @@ class KxRenderer extends DisplayObjectRenderer
 
 	private var _width:Float;
 	private var _height:Float;
-	private var _widthScaled:Float;
-	private var _heightScaled:Float;
 	private var _viewMatrix:Matrix = new Matrix();
 
 	private var _shader:KxShader;
@@ -76,6 +75,7 @@ class KxRenderer extends DisplayObjectRenderer
 	private var _uvs:Array<Float> = DEFAULT_UVS;
 	private var _maskUvs:Array<Float> = DEFAULT_MASK_UVS;
 	private var _vertexCache:Array<Float> = null;
+	private var _transform = new Matrix();
 
 	private var _commands:Array<Command> = [];
 	private var _blendMode:BlendMode = NORMAL;
@@ -175,15 +175,11 @@ class KxRenderer extends DisplayObjectRenderer
 	{
 		_width = width;
 		_height = height;
-		_widthScaled = _width * _pixelRatio;
-		_heightScaled = _height * _pixelRatio;
-
-		var offset = (1.0 - _pixelRatio) * 2.0 / _pixelRatio;
 
 		_viewMatrix.setTo(
-			2 / _width, 0,
+			2 / _width,	0,
 			0, -2 / _height,
-			-1, 1 + offset
+			-1, 1
 		);
 	}
 
@@ -198,7 +194,7 @@ class KxRenderer extends DisplayObjectRenderer
 	{
 		_commands = [];
 		_vertices.begin();
-		_clipRects.begin(0, 0, _widthScaled, _heightScaled);
+		_clipRects.begin();
 		_masks.begin();
 		_nodesVisited = 0;
 	}
@@ -207,7 +203,10 @@ class KxRenderer extends DisplayObjectRenderer
 	{
 		_vertices.end();
 
-		gl.viewport(0, 0, Std.int(_widthScaled), Std.int(_heightScaled));
+		var w = Std.int(_width);
+		var h = Std.int(_height);
+		gl.viewport(0, 0, w, h);
+		gl.scissor(0, 0, w, h);
 		gl.clearColor(_stage.__colorSplit[0], _stage.__colorSplit[1], _stage.__colorSplit[2], 1);
 		gl.clear(gl.COLOR_BUFFER_BIT);
 
@@ -219,7 +218,7 @@ class KxRenderer extends DisplayObjectRenderer
 		var quads = 0;
 		for (cmd in _commands)
 		{
-			if (_clipRects.scissor(cmd.clipRect))
+			if (_clipRects.scissor(cmd.rect))
 			{
 				_setBlendMode(cmd.blendMode);
 				for (i in 0...cmd.textures.length)
@@ -233,7 +232,7 @@ class KxRenderer extends DisplayObjectRenderer
 			}
 		}
 
-		trace("nodes: " + _nodesVisited + ", draw calls: " + drawCalls + ", quads: " + Std.int(_vertices.getNumVertices() / 4));
+		//trace("nodes: " + _nodesVisited + ", draw calls: " + drawCalls + ", quads: " + Std.int(_vertices.getNumVertices() / 4));
 		// var err = gl.getError();
 		// if (err != gl.NO_ERROR)
 		// {
@@ -260,21 +259,22 @@ class KxRenderer extends DisplayObjectRenderer
 
 	private function _renderRecursive(object:DisplayObject):Void
 	{
-		if (!object.__worldVisible || !object.__renderable || object.__worldAlpha <= 0.0)
+		if (!object.__renderable)
 		{
 			return;
 		}
 
+		if (object.__mask != null)
+		{
+			_masks.push(object.__mask);
+		}
 		if (object.__scrollRect != null)
 		{
 			_clipRects.push(object.__scrollRect, object.__renderTransform);
 		}
-		else if (object.__mask != null)
-		{
-			_masks.push(object.__mask);
-		}
 
 		_renderObject(object);
+
 		if (object.__type == DISPLAY_OBJECT_CONTAINER)
 		{
 			var container:DisplayObjectContainer = cast object;
@@ -288,7 +288,7 @@ class KxRenderer extends DisplayObjectRenderer
 		{
 			_clipRects.pop();
 		}
-		else if (object.__mask != null)
+		if (object.__mask != null)
 		{
 			_masks.pop();
 		}
@@ -502,14 +502,17 @@ class KxRenderer extends DisplayObjectRenderer
 		var r = x + w;
 		var b = y + h;
 
-		_posCache[0] = transform.__transformX(x, y);
-		_posCache[1] = transform.__transformY(x, y);
-		_posCache[2] = transform.__transformX(r, y);
-		_posCache[3] = transform.__transformY(r, y);
-		_posCache[4] = transform.__transformX(r, b);
-		_posCache[5] = transform.__transformY(r, b);
-		_posCache[6] = transform.__transformX(x, b);
-		_posCache[7] = transform.__transformY(x, b);
+		_transform.copyFrom(transform);
+		_transform.scale(_pixelRatio, _pixelRatio);
+
+		_posCache[0] = _transform.__transformX(x, y);
+		_posCache[1] = _transform.__transformY(x, y);
+		_posCache[2] = _transform.__transformX(r, y);
+		_posCache[3] = _transform.__transformY(r, y);
+		_posCache[4] = _transform.__transformX(r, b);
+		_posCache[5] = _transform.__transformY(r, b);
+		_posCache[6] = _transform.__transformX(x, b);
+		_posCache[7] = _transform.__transformY(x, b);
 	}
 
 	private function _useDefaultUvs():Void
@@ -565,7 +568,7 @@ class KxRenderer extends DisplayObjectRenderer
 		var textureUnit:Int = -1;
 		var cmd:Command = null;
 		var tail:Command = _commands.length > 0 ? _commands[_commands.length - 1] : null;
-		var newCommand:Bool = (tail == null || tail.blendMode != blendMode || tail.clipRect != _clipRects.top() || tail.mask != _masks.top());
+		var newCommand:Bool = (tail == null || tail.blendMode != blendMode || tail.mask != _masks.top() || !tail.rect.equals(_clipRects.top()));
 
 		if (!newCommand)
 		{
@@ -587,7 +590,7 @@ class KxRenderer extends DisplayObjectRenderer
 		if (newCommand || textureUnit == -1)
 		{
 			textureUnit = 0;
-			cmd = new Command(_masks.top(), _clipRects.top(), blendMode, texture, _vertices.getNumIndices(), 6);
+			cmd = new Command(_masks.top(), _clipRects.cloneTop(), blendMode, texture, _vertices.getNumIndices(), 6);
 			_commands.push(cmd);
 		}
 		else
@@ -627,16 +630,16 @@ class KxRenderer extends DisplayObjectRenderer
 private class Command
 {
 	public var mask:Int;
-	public var clipRect:Int;
+	public var rect:KxRect;
 	public var blendMode:BlendMode;
 	public var textures:Array<KxTexture>;
 	public var offset:Int;
 	public var count:Int;
 
-	public function new(mask:Int, clipRect:Int, blendMode:BlendMode, texture:KxTexture, offset:Int, count:Int)
+	public function new(mask:Int, rect:KxRect, blendMode:BlendMode, texture:KxTexture, offset:Int, count:Int)
 	{
 		this.mask = mask;
-		this.clipRect = clipRect;
+		this.rect = rect;
 		this.blendMode = blendMode;
 		this.textures = [ texture ];
 		this.offset = offset;
