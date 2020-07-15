@@ -16,6 +16,8 @@ class KxTexture implements KxGLResource
 	private var _width:Int = 0;
 	private var _height:Int = 0;
 
+	public var pixelScale:Float = 1.0;
+
 	public var valid:Bool = false;
 
 	#if debug

@@ -63,16 +63,19 @@ class KxMaskStack
 		}
 		else
 		{
+			var pixelRatio = _renderer._pixelRatio;
+
 			var l = Math.min(pos[0], pos[2]);
 			var r = Math.max(pos[0], pos[2]);
 			var t = Math.min(pos[1], pos[5]);
 			var b = Math.max(pos[1], pos[5]);
 
 			_objRect.set(l, t, r - l, b - t);
-			_objRect.clip(_maskRect);
 
-			var ipx = 1.0 / texture._width;
-			var ipy = 1.0 / texture._height;
+			var ipx = (1.0 / texture._width) * (texture.pixelScale / pixelRatio);
+			var ipy = (1.0 / texture._height) * (texture.pixelScale / pixelRatio);
+
+			_objRect.clip(_maskRect);
 
 			var objRight = _objRect.x + _objRect.w;
 			var objBottom = _objRect.y + _objRect.h;
@@ -202,7 +205,9 @@ class KxMaskStack
 				return getTexture(child);
 			}
 		}
-		return obj.__graphics.__bitmap.getTexture(_renderer.gl);
+		var texture = obj.__graphics.__bitmap.getTexture(_renderer.gl);
+		texture.pixelScale = _renderer._pixelRatio;
+		return texture;
 	}
 
 	private function getTransform(obj:DisplayObject):Matrix
@@ -238,7 +243,8 @@ class KxMaskStack
 			var h = transform.__transformY(right, bottom) - y;
 			_maskRect.set(x, y, w, h);
 			_maskRect.scale(_renderer._pixelRatio);
-			_pixelSize.setTo(1.0 / right, 1.0 / bottom);
+			var pixelRatio = _renderer._pixelRatio;
+			_pixelSize.setTo((1.0 / right) * (texture.pixelScale / pixelRatio), (1.0 / bottom) * (texture.pixelScale / pixelRatio));
 		}
 	}
 }

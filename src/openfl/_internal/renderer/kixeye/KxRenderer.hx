@@ -314,7 +314,9 @@ class KxRenderer extends DisplayObjectRenderer
 		{
 			if (object.__graphics != null && object.__graphics.__visible && object.__graphics.__bitmap != null)
 			{
-				_pushQuad(object, object.__graphics.__bitmap.getTexture(gl), object.__graphics.__worldTransform);
+				var texture = object.__graphics.__bitmap.getTexture(gl);
+				texture.pixelScale = _pixelRatio;
+				_pushQuad(object, texture, object.__graphics.__worldTransform);
 			}
 			if (object.__type == BITMAP)
 			{
