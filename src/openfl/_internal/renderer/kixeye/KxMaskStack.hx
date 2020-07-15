@@ -63,7 +63,12 @@ class KxMaskStack
 		}
 		else
 		{
-			_objRect.set(pos[0], pos[1], pos[4] - pos[0], pos[5] - pos[1]);
+			var l = Math.min(pos[0], pos[2]);
+			var r = Math.max(pos[0], pos[2]);
+			var t = Math.min(pos[1], pos[5]);
+			var b = Math.max(pos[1], pos[5]);
+
+			_objRect.set(l, t, r - l, b - t);
 			_objRect.clip(_maskRect);
 
 			var ipx = 1.0 / texture._width;
@@ -75,7 +80,7 @@ class KxMaskStack
 			var ld = (_objRect.x - pos[0]) * ipx;
 			var td = (_objRect.y - pos[1]) * ipy;
 			var rd = (pos[4] - objRight) * ipx;
-			var bd = (pos[5] - objBottom) * ipx;
+			var bd = (pos[5] - objBottom) * ipy;
 
 			pos[0] = _objRect.x;
 			pos[1] = _objRect.y;

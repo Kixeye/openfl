@@ -67,8 +67,8 @@ class KxClipRectStack
 		}
 		var x = Math.floor(rect.x);
 		var y = Math.floor(_renderer._height - rect.y - rect.h);
-		var w = Math.floor(rect.w);
-		var h = Math.floor(rect.h);
+		var w = Math.ceil(rect.w);
+		var h = Math.ceil(rect.h);
 		_renderer.gl.scissor(x, y, w, h);
 
 		return true;

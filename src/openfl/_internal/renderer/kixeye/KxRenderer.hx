@@ -612,11 +612,10 @@ class KxRenderer extends DisplayObjectRenderer
 			cmd.count += 6;
 		}
 
-		var ct = colorTransform != null ? colorTransform : IDENTITY_COLOR_TRANSFORM;
-		var alphaOffset = ct.alphaOffset * alpha;
-
 		_masks.apply(texture, _pos, _uvs, _muv);
 
+		var ct = colorTransform != null ? colorTransform : IDENTITY_COLOR_TRANSFORM;
+		var alphaOffset = ct.alphaOffset * alpha;
 		var j = 0;
 		for (i in 0...4)
 		{
