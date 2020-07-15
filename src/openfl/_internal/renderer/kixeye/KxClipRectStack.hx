@@ -24,7 +24,7 @@ class KxClipRectStack
 		return _stack[_size - 1];
 	}
 
-	public function cloneTop():KxRect
+	public function cacheTop():KxRect
 	{
 		if (_pool.length <= _poolSize)
 		{

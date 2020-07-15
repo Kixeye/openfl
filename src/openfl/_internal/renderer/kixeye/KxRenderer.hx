@@ -47,8 +47,6 @@ class KxRenderer extends DisplayObjectRenderer
 	private static inline var MAX_INDICES:Int = 49152;
 	private static var IDENTITY_COLOR_TRANSFORM = new ColorTransform();
 	private static var QUAD_INDICES:Array<Int> = [0, 1, 2, 0, 2, 3];
-	private static var DEFAULT_UVS:Array<Float> = [0, 0, 1, 0, 1, 1, 0, 1];
-	private static var DEFAULT_MASK_UVS:Array<Float> = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5];
 
 	public var gl:WebGLRenderingContext;
 
@@ -69,11 +67,9 @@ class KxRenderer extends DisplayObjectRenderer
 	private var _vertices:KxVertexBuffer;
 	private var _vertexStride:Int = 0;
 
-	private var _uvCache:Array<Float> = [0, 0, 0, 0, 0, 0, 0, 0];
-	private var _maskUvCache:Array<Float> = [0, 0, 0, 0, 0, 0, 0, 0];
-	private var _posCache:Array<Float> = [0, 0, 0, 0, 0, 0, 0, 0];
-	private var _uvs:Array<Float> = DEFAULT_UVS;
-	private var _maskUvs:Array<Float> = DEFAULT_MASK_UVS;
+	private var _pos:Array<Float> = [0, 0, 0, 0, 0, 0, 0, 0];
+	private var _uvs:Array<Float> = [0, 0, 0, 0, 0, 0, 0, 0];
+	private var _muv:Array<Float> = [0, 0, 0, 0, 0, 0, 0, 0];
 	private var _vertexCache:Array<Float> = null;
 	private var _transform = new Matrix();
 
@@ -150,7 +146,7 @@ class KxRenderer extends DisplayObjectRenderer
 		_viewUniform = _shader.getUniform("u_view");
 
 		_clipRects = new KxClipRectStack(this);
-		_masks = new KxMaskStack(gl, _softwareRenderer, _maskUnit);
+		_masks = new KxMaskStack(this);
 		_tilemapRenderer = new KxTilemapRenderer(this);
 		_filterRenderer = new KxFilterRenderer(gl);
 	}
@@ -266,6 +262,7 @@ class KxRenderer extends DisplayObjectRenderer
 
 		if (object.__mask != null)
 		{
+			_drawMaskGraphics(object.__mask);
 			_masks.push(object.__mask);
 		}
 		if (object.__scrollRect != null)
@@ -349,13 +346,31 @@ class KxRenderer extends DisplayObjectRenderer
 		{
 			CanvasTextField.render(cast object, _softwareRenderer, object.__worldTransform);
 		}
+
 		if (object.__graphics != null)
 		{
 			CanvasGraphics.render(object.__graphics, _softwareRenderer);
 		}
+
 		if (object.__filters != null)
 		{
 			_filterRenderer.render(object);
+		}
+	}
+
+	private function _drawMaskGraphics(object:DisplayObject)
+	{
+		if (object.__graphics != null)
+		{
+			CanvasGraphics.render(object.__graphics, _softwareRenderer);
+		}
+		if (object.__type == DISPLAY_OBJECT_CONTAINER)
+		{
+			var container:DisplayObjectContainer = cast object;
+			for (child in container.__children)
+			{
+				_drawMaskGraphics(child);
+			}
 		}
 	}
 
@@ -505,64 +520,62 @@ class KxRenderer extends DisplayObjectRenderer
 		_transform.copyFrom(transform);
 		_transform.scale(_pixelRatio, _pixelRatio);
 
-		_posCache[0] = _transform.__transformX(x, y);
-		_posCache[1] = _transform.__transformY(x, y);
-		_posCache[2] = _transform.__transformX(r, y);
-		_posCache[3] = _transform.__transformY(r, y);
-		_posCache[4] = _transform.__transformX(r, b);
-		_posCache[5] = _transform.__transformY(r, b);
-		_posCache[6] = _transform.__transformX(x, b);
-		_posCache[7] = _transform.__transformY(x, b);
+		_pos[0] = _transform.__transformX(x, y);
+		_pos[1] = _transform.__transformY(x, y);
+		_pos[2] = _transform.__transformX(r, y);
+		_pos[3] = _transform.__transformY(r, y);
+		_pos[4] = _transform.__transformX(r, b);
+		_pos[5] = _transform.__transformY(r, b);
+		_pos[6] = _transform.__transformX(x, b);
+		_pos[7] = _transform.__transformY(x, b);
 	}
 
 	private function _useDefaultUvs():Void
 	{
-		_uvs = DEFAULT_UVS;
+		_uvs[0] = 0;
+		_uvs[1] = 0;
+		_uvs[2] = 1;
+		_uvs[3] = 0;
+		_uvs[4] = 1;
+		_uvs[5] = 1;
+		_uvs[6] = 0;
+		_uvs[7] = 1;
 	}
 
 	private function _setUvs(u:Float, v:Float, s:Float, t:Float):Void
 	{
-		_uvCache[0] = u;
-		_uvCache[1] = v;
-
-		_uvCache[2] = s;
-		_uvCache[3] = v;
-
-		_uvCache[4] = s;
-		_uvCache[5] = t;
-
-		_uvCache[6] = u;
-		_uvCache[7] = t;
-
-		_uvs = _uvCache;
+		_uvs[0] = u;
+		_uvs[1] = v;
+		_uvs[2] = s;
+		_uvs[3] = v;
+		_uvs[4] = s;
+		_uvs[5] = t;
+		_uvs[6] = u;
+		_uvs[7] = t;
 	}
 
 	private function _setUs(u:Float, s:Float):Void
 	{
-		_uvCache[0] = u;
-		_uvCache[2] = s;
-		_uvCache[4] = s;
-		_uvCache[6] = u;
-
-		_uvs = _uvCache;
+		_uvs[0] = u;
+		_uvs[2] = s;
+		_uvs[4] = s;
+		_uvs[6] = u;
 	}
 
 	private function _setVs(v:Float, t:Float):Void
 	{
-		_uvCache[1] = v;
-		_uvCache[3] = v;
-		_uvCache[5] = t;
-		_uvCache[7] = t;
-
-		_uvs = _uvCache;
+		_uvs[1] = v;
+		_uvs[3] = v;
+		_uvs[5] = t;
+		_uvs[7] = t;
 	}
 
 	private function _push(texture:KxTexture, blendMode:BlendMode, alpha:Float, colorTransform:ColorTransform)
 	{
-		// if (!_clipRects.intersects(_posCache))
-		// {
-		// 	return;
-		// }
+		if (!_masks.intersects(_pos))
+		{
+			return;
+		}
 		texture = (texture != null && texture.valid) ? texture : _defaultTexture;
 
 		var textureUnit:Int = -1;
@@ -590,7 +603,7 @@ class KxRenderer extends DisplayObjectRenderer
 		if (newCommand || textureUnit == -1)
 		{
 			textureUnit = 0;
-			cmd = new Command(_masks.top(), _clipRects.cloneTop(), blendMode, texture, _vertices.getNumIndices(), 6);
+			cmd = new Command(_masks.top(), _clipRects.cacheTop(), blendMode, texture, _vertices.getNumIndices(), 6);
 			_commands.push(cmd);
 		}
 		else
@@ -602,17 +615,19 @@ class KxRenderer extends DisplayObjectRenderer
 		var ct = colorTransform != null ? colorTransform : IDENTITY_COLOR_TRANSFORM;
 		var alphaOffset = ct.alphaOffset * alpha;
 
+		_masks.apply(texture, _pos, _uvs, _muv);
+
 		var j = 0;
 		for (i in 0...4)
 		{
 			var k0 = i * 2;
 			var k1 = k0 + 1;
-			_vertexCache[j++] = _posCache[k0];
-			_vertexCache[j++] = _posCache[k1];
+			_vertexCache[j++] = _pos[k0];
+			_vertexCache[j++] = _pos[k1];
 			_vertexCache[j++] = _uvs[k0];
 			_vertexCache[j++] = _uvs[k1];
-			_vertexCache[j++] = _maskUvs[k0];
-			_vertexCache[j++] = _maskUvs[k1];
+			_vertexCache[j++] = _muv[k0];
+			_vertexCache[j++] = _muv[k1];
 			_vertexCache[j++] = ct.redMultiplier;
 			_vertexCache[j++] = ct.greenMultiplier;
 			_vertexCache[j++] = ct.blueMultiplier;
@@ -629,14 +644,14 @@ class KxRenderer extends DisplayObjectRenderer
 
 private class Command
 {
-	public var mask:Int;
+	public var mask:DisplayObject;
 	public var rect:KxRect;
 	public var blendMode:BlendMode;
 	public var textures:Array<KxTexture>;
 	public var offset:Int;
 	public var count:Int;
 
-	public function new(mask:Int, rect:KxRect, blendMode:BlendMode, texture:KxTexture, offset:Int, count:Int)
+	public function new(mask:DisplayObject, rect:KxRect, blendMode:BlendMode, texture:KxTexture, offset:Int, count:Int)
 	{
 		this.mask = mask;
 		this.rect = rect;
