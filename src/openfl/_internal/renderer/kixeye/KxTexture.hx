@@ -20,6 +20,8 @@ class KxTexture implements KxGLResource
 
 	public var valid:Bool = false;
 
+	public static var maxTextureSize:Int = 0;
+
 	#if debug
 	private var _src:Dynamic = null;
 	#end
@@ -63,6 +65,13 @@ class KxTexture implements KxGLResource
 			trace("Invalid texture size: " + _width + "x" + _height);
 			return;
 		}
+
+		if (_width > maxTextureSize || _height > maxTextureSize)
+		{
+			trace("Texture too large: " + _width + "x" + _height);
+			return;
+		}
+
 		gl.bindTexture(gl.TEXTURE_2D, _texture);
 
 		var internalFormat, format;

@@ -109,6 +109,8 @@ class KxRenderer extends DisplayObjectRenderer
 			Graphics.maxTextureWidth = Graphics.maxTextureHeight = maxTextureSize;
 		}
 
+		KxTexture.maxTextureSize = maxTextureSize;
+
 		BitmapData.__renderer = this;
 		BitmapData.__softwareRenderer = _softwareRenderer;
 
