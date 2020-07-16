@@ -66,10 +66,24 @@ class KxTexture implements KxGLResource
 			return;
 		}
 
+		var scaled = false;
+
 		if (_width > maxTextureSize || _height > maxTextureSize)
 		{
 			trace("Texture too large: " + _width + "x" + _height);
-			return;
+
+			var largeSide = Math.max(_width, _height);
+			var scale = maxTextureSize / largeSide;
+
+			_width = Math.floor(_width * scale);
+			_height = Math.floor(_height * scale);
+
+			trace("Scaled down size: " + _width + "x" + _height);
+
+			image.resize(_width, _height);
+
+			pixelScale = scale;
+			scaled = true;
 		}
 
 		gl.bindTexture(gl.TEXTURE_2D, _texture);
@@ -90,7 +104,7 @@ class KxTexture implements KxGLResource
 		{
 			gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 1);
 		}
-		if (image.type == DATA)
+		if (image.type == DATA || scaled)
 		{
 			gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, image.buffer.width, image.buffer.height, 0, format, gl.UNSIGNED_BYTE, image.data);
 		}
