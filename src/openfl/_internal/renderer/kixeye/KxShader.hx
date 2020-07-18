@@ -28,6 +28,7 @@ class KxShader implements KxGLResource
 			_gl.deleteProgram(_program);
 			_program = null;
 		}
+		_gl = null;
 	}
 
 	public function use():Void
@@ -60,10 +61,20 @@ class KxShader implements KxGLResource
 		return _gl.getUniformLocation(_program, name);
 	}
 
-	public function bindAttributes(vertexBuffer:KxVertexBuffer):Void
+	public function compile(vert:String, frag:String, attributes:Array<KxVertexAttribute>):Void
 	{
+		var vertShader = compileShader(vert, _gl.VERTEX_SHADER);
+		var fragShader = compileShader(frag, _gl.FRAGMENT_SHADER);
+
+		if (vertShader != null && fragShader != null)
+		{
+			_program = _gl.createProgram();
+			_gl.attachShader(_program, vertShader);
+			_gl.attachShader(_program, fragShader);
+		}
+
 		var index = 0;
-		for (attr in vertexBuffer._attributes)
+		for (attr in attributes)
 		{
 			_gl.bindAttribLocation(_program, index, attr.name);
 			++index;
@@ -79,19 +90,7 @@ class KxShader implements KxGLResource
 			_gl.deleteProgram(_program);
 			_program = null;
 		}
-	}
 
-	public function compile(vert:String, frag:String):Void
-	{
-		var vertShader = compileShader(vert, _gl.VERTEX_SHADER);
-		var fragShader = compileShader(frag, _gl.FRAGMENT_SHADER);
-
-		if (vertShader != null && fragShader != null)
-		{
-			_program = _gl.createProgram();
-			_gl.attachShader(_program, vertShader);
-			_gl.attachShader(_program, fragShader);
-		}
 	}
 
 	private function compileShader(source:String, type:Int):Shader

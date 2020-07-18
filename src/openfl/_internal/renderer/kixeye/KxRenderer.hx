@@ -29,8 +29,10 @@ import openfl.geom.Matrix;
 import openfl.geom.Rectangle;
 import openfl.media.Video;
 
+@:access(openfl.filters.BitmapFilter)
 @:access(openfl.geom.Matrix)
 @:access(openfl.geom.Rectangle)
+@:access(openfl.geom.ColorTransform)
 @:access(openfl.display.Bitmap)
 @:access(openfl.display.BitmapData)
 @:access(openfl.display.DisplayObject)
@@ -41,66 +43,51 @@ import openfl.media.Video;
 @:access(openfl.text.TextField)
 @:access(openfl._internal.renderer.canvas.CanvasRenderer)
 @:access(openfl._internal.renderer.kixeye.KxTexture)
+@:access(openfl._internal.renderer.kixeye.KxBatchRenderer)
 class KxRenderer extends DisplayObjectRenderer
 {
-	private static inline var MAX_VERTICES:Int = 32768;
-	private static inline var MAX_INDICES:Int = 49152;
-	private static var IDENTITY_COLOR_TRANSFORM = new ColorTransform();
-	private static var QUAD_INDICES:Array<Int> = [0, 1, 2, 0, 2, 3];
-
+	public var stage:Stage;
 	public var gl:WebGLRenderingContext;
+	public var pixelRatio:Float;
+	public var softwareRenderer:CanvasRenderer;
 
-	private var _stage:Stage;
+	public var maxTextureUnits:Int;
+	public var maskUnit:Int;
+	public var width:Float;
+	public var height:Float;
 
-	private var _pixelRatio:Float;
-	private var _softwareRenderer:CanvasRenderer;
+	public var batchShader:KxShader;
+	public var viewUniform:UniformLocation;
+	public var defaultTexture:KxTexture;
+	public var whiteTexture:KxTexture;
+	public var batchAttributes:Array<KxVertexAttribute>;
 
-	private var _width:Float;
-	private var _height:Float;
-	private var _viewMatrix:Matrix = new Matrix();
+	private var _batchRenderer:KxBatchRenderer;
+	private var _cacheRenderers:Array<KxBatchRenderer>;
+	private var _currentRenderer:Int;
 
-	private var _shader:KxShader;
-	private var _viewUniform:UniformLocation;
-	private var _maxTextureUnits:Int;
-	private var _maskUnit:Int;
-	private var _defaultTexture:KxTexture;
-	private var _vertices:KxVertexBuffer;
-	private var _vertexStride:Int = 0;
-
-	private var _pos:Array<Float> = [0, 0, 0, 0, 0, 0, 0, 0];
-	private var _uvs:Array<Float> = [0, 0, 0, 0, 0, 0, 0, 0];
-	private var _muv:Array<Float> = [0, 0, 0, 0, 0, 0, 0, 0];
-	private var _vertexCache:Array<Float> = null;
-	private var _transform = new Matrix();
-
-	private var _commands:Array<Command> = [];
-	private var _blendMode:BlendMode = NORMAL;
-
-	private var _clipRects:KxClipRectStack;
-	private var _masks:KxMaskStack;
-	private var _tilemapRenderer:KxTilemapRenderer;
-	private var _filterRenderer:KxFilterRenderer;
-
-	private var _nodesVisited:Int = 0;
+	private var _colorTransform:ColorTransform = new ColorTransform();
+	private var _rect:Rectangle = new Rectangle();
 
 	public function new(stage:Stage, pixelRatio:Float)
 	{
 		super();
 
+		this.stage = stage;
+		this.pixelRatio = pixelRatio;
+
 		gl = stage.window.context.webgl;
 
-		_stage = stage;
-		_pixelRatio = pixelRatio;
-		_softwareRenderer = new CanvasRenderer(null);
-		_softwareRenderer.pixelRatio = pixelRatio;
-		_softwareRenderer.__worldTransform = __worldTransform;
-		_softwareRenderer.__worldColorTransform = __worldColorTransform;
+		softwareRenderer = new CanvasRenderer(null);
+		softwareRenderer.pixelRatio = pixelRatio;
+		softwareRenderer.__worldTransform = __worldTransform;
+		softwareRenderer.__worldColorTransform = __worldColorTransform;
 
 		var glslVersion = gl.getParameter(gl.SHADING_LANGUAGE_VERSION);
 		trace("Shading language version: " + glslVersion);
 
-		_maxTextureUnits = Std.int(Math.min(16, gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS)));
-		_maskUnit = --_maxTextureUnits;
+		maxTextureUnits = Std.int(Math.min(16, gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS)));
+		maskUnit = --maxTextureUnits;
 
 		var maxTextureSize:Int = gl.getParameter(gl.MAX_TEXTURE_SIZE);
 		trace("Max texture size: " + maxTextureSize);
@@ -108,11 +95,9 @@ class KxRenderer extends DisplayObjectRenderer
 		{
 			Graphics.maxTextureWidth = Graphics.maxTextureHeight = maxTextureSize;
 		}
-
 		KxTexture.maxTextureSize = maxTextureSize;
 
-		BitmapData.__renderer = this;
-		BitmapData.__softwareRenderer = _softwareRenderer;
+		BitmapData.__softwareRenderer = softwareRenderer;
 
 		// initial GL state
 		gl.disable(gl.DEPTH_TEST);
@@ -121,547 +106,280 @@ class KxRenderer extends DisplayObjectRenderer
 		gl.enable(gl.BLEND);
 		gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
-		_defaultTexture = new KxTexture(gl, null);
-		_defaultTexture.uploadDefault();
+		batchAttributes = [
+			new KxVertexAttribute("a_pos", 2, false),
+			new KxVertexAttribute("a_uv", 4, false),
+			new KxVertexAttribute("a_colorMult", 4, false),
+			new KxVertexAttribute("a_colorOffset", 4, false),
+			new KxVertexAttribute("a_textureId", 1, false)
+		];
 
-		_vertices = new KxVertexBuffer(gl);
-		_vertices.attribute("a_pos", 2, false);
-		_vertices.attribute("a_uv", 4, false);
-		_vertices.attribute("a_colorMult", 4, false);
-		_vertices.attribute("a_colorOffset", 4, false);
-		_vertices.attribute("a_textureId", 1, false);
-		_vertexStride = _vertices.commit(MAX_VERTICES, MAX_INDICES);
-		_vertexCache = [for (i in 0..._vertexStride * 4) 0.0];
+		defaultTexture = new KxTexture(gl, null);
+		defaultTexture.uploadDefault();
 
-		_shader = new KxShader(gl);
-		_shader.compile(QuadShader.VERTEX, QuadShader.FRAGMENT);
-		_shader.bindAttributes(_vertices);
-		_shader.use();
-		for (i in 0..._maxTextureUnits)
+		whiteTexture = new KxTexture(gl, null);
+		whiteTexture.uploadWhite();
+
+		batchShader = new KxShader(gl);
+		batchShader.compile(QuadShader.VERTEX, QuadShader.FRAGMENT, batchAttributes);
+		batchShader.use();
+		for (i in 0...maxTextureUnits)
 		{
-			var uniform = _shader.getUniform("u_sampler" + i);
+			var uniform = batchShader.getUniform("u_sampler" + i);
 			gl.uniform1i(uniform, i);
-			_defaultTexture.bind(i, false);
+			defaultTexture.bind(i, false);
 		}
-		gl.uniform1i(_shader.getUniform("u_mask"), _maskUnit);
-		_defaultTexture.bind(_maskUnit, false);
-		_viewUniform = _shader.getUniform("u_view");
+		gl.uniform1i(batchShader.getUniform("u_mask"), maskUnit);
+		defaultTexture.bind(maskUnit, false);
+		viewUniform = batchShader.getUniform("u_view");
 
-		_clipRects = new KxClipRectStack(this);
-		_masks = new KxMaskStack(this);
-		_tilemapRenderer = new KxTilemapRenderer(this);
-		_filterRenderer = new KxFilterRenderer(gl);
+		_batchRenderer = new KxBatchRenderer(this);
+		_cacheRenderers = [new KxBatchRenderer(this)];
+		_currentRenderer = 0;
 	}
 
 	private override function __dispose():Void
 	{
-		_shader.dispose();
-		_shader = null;
-		_vertices.dispose();
-		_vertices = null;
-		_commands = null;
-		_softwareRenderer.__dispose();
-		_softwareRenderer = null;
-		_clipRects = null;
-		_viewUniform = null;
-		_defaultTexture.dispose();
-		_defaultTexture = null;
+		softwareRenderer.__dispose();
+		softwareRenderer = null;
+
+		for (renderer in _cacheRenderers)
+		{
+			renderer.dispose();
+		}
+		_cacheRenderers = null;
+
+		_batchRenderer.dispose();
+		_batchRenderer = null;
+
+		defaultTexture.dispose();
+		defaultTexture = null;
+
+		whiteTexture.dispose();
+		whiteTexture = null;
+
+		batchShader.dispose();
+		batchShader = null;
+		viewUniform = null;
+
+		batchAttributes = null;
 		gl = null;
 	}
 
 	private override function __resize(width:Int, height:Int):Void
 	{
-		_width = width;
-		_height = height;
-
-		_viewMatrix.setTo(
-			2 / _width,	0,
-			0, -2 / _height,
-			-1, 1
-		);
+		this.width = width;
+		this.height = height;
 	}
 
 	private override function __render(object:IBitmapDrawable):Void
 	{
-		_beginFrame();
-		_renderRecursive(cast object);
-		_endFrame();
+		_batchRenderer.render(cast object, null);
 	}
 
-	private function _beginFrame():Void
+	public function updateCacheBitmap(object:DisplayObject):Void
 	{
-		_commands = [];
-		_vertices.begin();
-		_clipRects.begin();
-		_masks.begin();
-		_nodesVisited = 0;
-	}
-
-	private function _endFrame():Void
-	{
-		_vertices.end();
-
-		var w = Std.int(_width);
-		var h = Std.int(_height);
-		gl.viewport(0, 0, w, h);
-		gl.scissor(0, 0, w, h);
-		gl.clearColor(_stage.__colorSplit[0], _stage.__colorSplit[1], _stage.__colorSplit[2], 1);
-		gl.clear(gl.COLOR_BUFFER_BIT);
-
-		_shader.use();
-		_shader.updateUniformMat3(_viewUniform, _viewMatrix.toArray());
-		_vertices.enable();
-
-		var drawCalls = 0;
-		var quads = 0;
-		for (cmd in _commands)
+		if (object.cacheAsBitmap)
 		{
-			if (_clipRects.scissor(cmd.rect))
+			if (object.__cacheBitmapMatrix == null)
 			{
-				_setBlendMode(cmd.blendMode);
-				for (i in 0...cmd.textures.length)
+				object.__cacheBitmapMatrix = new Matrix();
+			}
+
+			var hasFilters = object.__filters != null;
+			var bitmapMatrix = (object.__cacheAsBitmapMatrix != null ? object.__cacheAsBitmapMatrix : object.__renderTransform);
+
+			_colorTransform.__copyFrom(object.__worldColorTransform);
+
+			var needRender = (object.__cacheBitmap == null
+				|| (object.__renderDirty && (object.__children != null && object.__children.length > 0))
+				|| object.opaqueBackground != object.__cacheBitmapBackground);
+
+			if (!needRender
+				&& (bitmapMatrix.a != object.__cacheBitmapMatrix.a
+					|| bitmapMatrix.b != object.__cacheBitmapMatrix.b
+					|| bitmapMatrix.c != object.__cacheBitmapMatrix.c
+					|| bitmapMatrix.d != object.__cacheBitmapMatrix.d))
+			{
+				needRender = true;
+			}
+
+			if (hasFilters && !needRender)
+			{
+				for (filter in object.__filters)
 				{
-					var texture = cmd.textures[i];
-					texture.bind(i, true);
-				}
-				_masks.bind(cmd.mask);
-				_vertices.draw(cmd.offset, cmd.count);
-				++drawCalls;
-			}
-		}
-
-		//trace("nodes: " + _nodesVisited + ", draw calls: " + drawCalls + ", quads: " + Std.int(_vertices.getNumVertices() / 4));
-		// var err = gl.getError();
-		// if (err != gl.NO_ERROR)
-		// {
-		// 	var msg = "GL error " + err;
-		// 	trace(msg);
-		// }
-	}
-
-	private function _setBlendMode(blendMode:BlendMode):Void
-	{
-		if (_blendMode == blendMode)
-		{
-			return;
-		}
-		_blendMode = blendMode;
-		switch (_blendMode)
-		{
-			case ADD: gl.blendFunc(gl.ONE, gl.ONE);
-			case MULTIPLY: gl.blendFunc(gl.DST_COLOR, gl.ONE_MINUS_SRC_ALPHA);
-			case SCREEN: gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR);
-			default: gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-		}
-	}
-
-	private function _renderRecursive(object:DisplayObject):Void
-	{
-		if (!object.__renderable)
-		{
-			return;
-		}
-
-		if (object.__mask != null)
-		{
-			_drawMaskGraphics(object.__mask);
-			_masks.push(object.__mask);
-		}
-		if (object.__scrollRect != null)
-		{
-			_clipRects.push(object.__scrollRect, object.__renderTransform);
-		}
-
-		_renderObject(object);
-
-		if (object.__type == DISPLAY_OBJECT_CONTAINER)
-		{
-			var container:DisplayObjectContainer = cast object;
-			for (child in container.__children)
-			{
-				_renderRecursive(child);
-			}
-		}
-
-		if (object.__scrollRect != null)
-		{
-			_clipRects.pop();
-		}
-		if (object.__mask != null)
-		{
-			_masks.pop();
-		}
-	}
-
-	private function _renderObject(object:DisplayObject):Void
-	{
-		++_nodesVisited;
-
-		if (object.__type == SIMPLE_BUTTON)
-		{
-			var button:SimpleButton = cast object;
-			if (button.__currentState != null)
-			{
-				_renderObject(button.__currentState);
-			}
-		}
-
-		_drawCacheBitmap(object);
-
-		if (object.__renderTarget != null)
-		{
-			_pushQuad(object, object.__renderTarget.getTexture(), object.__renderTargetMatrix);
-		}
-		else
-		{
-			if (object.__graphics != null && object.__graphics.__visible && object.__graphics.__bitmap != null)
-			{
-				var texture = object.__graphics.__bitmap.getTexture(gl);
-				texture.pixelScale = _pixelRatio;
-				_pushQuad(object, texture, object.__graphics.__worldTransform);
-			}
-			if (object.__type == BITMAP)
-			{
-				var bmp:Bitmap = cast object;
-				if (bmp.__bitmapData != null)
-				{
-					_pushQuad(bmp, bmp.__bitmapData.getTexture(gl), bmp.__renderTransform);
+					if (filter.__renderDirty)
+					{
+						needRender = true;
+						break;
+					}
 				}
 			}
-			else if (object.__type == TILEMAP)
+
+			var updateTransform = (needRender || !object.__cacheBitmap.__worldTransform.equals(object.__worldTransform));
+
+			object.__cacheBitmapMatrix.copyFrom(bitmapMatrix);
+			object.__cacheBitmapMatrix.tx = 0;
+			object.__cacheBitmapMatrix.ty = 0;
+
+			// TODO: Handle dimensions better if object has a scrollRect?
+
+			var bitmapWidth = 0, bitmapHeight = 0;
+			var filterWidth = 0, filterHeight = 0;
+			var offsetX = 0., offsetY = 0.;
+
+			if (updateTransform)
 			{
-				_tilemapRenderer.render(cast object);
-			}
-			else if (object.__type == VIDEO)
-			{
-				var video:Video = cast object;
-				var texture = video.__getTexture(gl);
-				if (texture != null)
+				_rect.setTo(0, 0, 0, 0);
+				object.__getFilterBounds(_rect, object.__cacheBitmapMatrix);
+
+				filterWidth = Math.ceil(_rect.width * pixelRatio);
+				filterHeight = Math.ceil(_rect.height * pixelRatio);
+
+				offsetX = _rect.x > 0 ? Math.ceil(_rect.x) : Math.floor(_rect.x);
+				offsetY = _rect.y > 0 ? Math.ceil(_rect.y) : Math.floor(_rect.y);
+
+				if (object.__renderTarget != null)
 				{
-					_pushQuad(video, texture, video.__renderTransform);
+					if (filterWidth > object.__renderTarget.width || filterHeight > object.__renderTarget.height)
+					{
+						bitmapWidth = filterWidth;
+						bitmapHeight = filterHeight;
+						needRender = true;
+					}
+					else
+					{
+						bitmapWidth = object.__renderTarget.width;
+						bitmapHeight = object.__renderTarget.height;
+					}
+				}
+				else
+				{
+					bitmapWidth = filterWidth;
+					bitmapHeight = filterHeight;
 				}
 			}
-		}
-	}
 
-	private function _drawCacheBitmap(object:DisplayObject)
-	{
-		if (object.__type == TEXTFIELD)
-		{
-			CanvasTextField.render(cast object, _softwareRenderer, object.__worldTransform);
-		}
-
-		if (object.__graphics != null)
-		{
-			CanvasGraphics.render(object.__graphics, _softwareRenderer);
-		}
-
-		if (object.__filters != null)
-		{
-			_filterRenderer.render(object);
-		}
-	}
-
-	private function _drawMaskGraphics(object:DisplayObject)
-	{
-		if (object.__graphics != null)
-		{
-			CanvasGraphics.render(object.__graphics, _softwareRenderer);
-		}
-		if (object.__type == DISPLAY_OBJECT_CONTAINER)
-		{
-			var container:DisplayObjectContainer = cast object;
-			for (child in container.__children)
+			if (needRender)
 			{
-				_drawMaskGraphics(child);
-			}
-		}
-	}
+				updateTransform = true;
+				object.__cacheBitmapBackground = object.opaqueBackground;
 
-	private function _pushQuad(obj:DisplayObject, texture:KxTexture, transform:Matrix):Void
-	{
-		var alpha = obj.__worldAlpha;
-		var blendMode = obj.__worldBlendMode;
-		var colorTransform = obj.__worldColorTransform;
-		var scale9Grid = obj.__worldScale9Grid;
-		var width = texture._width;
-		var height = texture._height;
-
-		if (scale9Grid != null)
-		{
-			var uvWidth = 1.0;
-			var uvHeight = 1.0;
-
-			var vertexBufferWidth = obj.width;
-			var vertexBufferHeight = obj.height;
-			var vertexBufferScaleX = obj.scaleX / _pixelRatio;
-			var vertexBufferScaleY = obj.scaleY / _pixelRatio;
-
-			var centerX = scale9Grid.width;
-			var centerY = scale9Grid.height;
-			if (centerX != 0 && centerY != 0)
-			{
-				var left = scale9Grid.x;
-				var top = scale9Grid.y;
-				var right = vertexBufferWidth - centerX - left;
-				var bottom = vertexBufferHeight - centerY - top;
-
-				var uvLeft = left / vertexBufferWidth;
-				var uvTop = top / vertexBufferHeight;
-				var uvCenterX = scale9Grid.width / vertexBufferWidth;
-				var uvCenterY = scale9Grid.height / vertexBufferHeight;
-				var uvRight = right / width;
-				var uvBottom = bottom / height;
-				var uvOffsetU = (_pixelRatio * 0.5) / vertexBufferWidth;
-				var uvOffsetV = (_pixelRatio * 0.5) / vertexBufferHeight;
-
-				var renderedLeft = left / vertexBufferScaleX;
-				var renderedTop = top / vertexBufferScaleY;
-				var renderedRight = right / vertexBufferScaleX;
-				var renderedBottom = bottom / vertexBufferScaleY;
-				var renderedCenterX = (width - renderedLeft - renderedRight);
-				var renderedCenterY = (height - renderedTop - renderedBottom);
-
-				//  a         b          c         d
-				// p  0 ——— 1    4 ——— 5    8 ——— 9
-				//    |  /  |    |  /  |    |  /  |
-				//    2 ——— 3    6 ——— 7   10 ——— 11
-				// q
-				//   12 ——— 13  16 ——— 18  20 ——— 21
-				//    |  /  |    |  /  |    |  /  |
-				//   14 ——— 15  17 ——— 19  22 ——— 23
-				// r
-				//   24 ——— 25  28 ——— 29  32 ——— 33
-				//    |  /  |    |  /  |    |  /  |
-				//   26 ——— 27  30 ——— 31  34 ——— 35
-				// s
-
-				var a = 0;
-				var b = renderedLeft;
-				var c = renderedLeft + renderedCenterX;
-				var bc = renderedCenterX;
-				var d = width;
-				var cd = d - c;
-
-				var p = 0;
-				var q = renderedTop;
-				var r = renderedTop + renderedCenterY;
-				var qr = renderedCenterY;
-				var s = height;
-				var rs = s - r;
-
-				_setVs(0, (uvHeight * uvTop) - uvOffsetV);
-				_setVertices(transform, a, p, b, q);
-				_setUs(0, (uvWidth * uvLeft) - uvOffsetU);
-				_push(texture, blendMode, alpha, colorTransform);
-
-				_setVertices(transform, b, p, bc, q);
-				_setUs((uvWidth * uvLeft) + uvOffsetU, (uvWidth * (uvLeft + uvCenterX)) - uvOffsetU);
-				_push(texture, blendMode, alpha, colorTransform);
-
-				_setVertices(transform, c, p, cd, q);
-				_setUs((uvWidth * (uvLeft + uvCenterX)) + uvOffsetU, uvWidth);
-				_push(texture, blendMode, alpha, colorTransform);
-
-				_setVs((uvHeight * uvTop) + uvOffsetV, (uvHeight * (uvTop + uvCenterY)) - uvOffsetV);
-				_setVertices(transform, a, q, b, qr);
-				_setUs(0, (uvWidth * uvLeft) - uvOffsetU);
-				_push(texture, blendMode, alpha, colorTransform);
-
-				_setVertices(transform, b, q, bc, qr);
-				_setUs((uvWidth * uvLeft) + uvOffsetU, (uvWidth * (uvLeft + uvCenterX)) - uvOffsetU);
-				_push(texture, blendMode, alpha, colorTransform);
-
-				_setVertices(transform, c, q, cd, qr);
-				_setUs((uvWidth * (uvLeft + uvCenterX)) + uvOffsetU, uvWidth);
-				_push(texture, blendMode, alpha, colorTransform);
-
-				_setVs((uvHeight * (uvTop + uvCenterY)) + uvOffsetV, uvHeight);
-				_setVertices(transform, a, r, b, rs);
-				_setUs(0, (uvWidth * uvLeft) - uvOffsetU);
-				_push(texture, blendMode, alpha, colorTransform);
-
-				_setVertices(transform, b, r, bc, rs);
-				_setUs((uvWidth * uvLeft) + uvOffsetU, (uvWidth * (uvLeft + uvCenterX)) - uvOffsetU);
-				_push(texture, blendMode, alpha, colorTransform);
-
-				_setVertices(transform, c, r, cd, rs);
-				_setUs((uvWidth * (uvLeft + uvCenterX)) + uvOffsetU, uvWidth);
-				_push(texture, blendMode, alpha, colorTransform);
-			}
-			else if (centerX == 0 && centerY != 0)
-			{
-				// TODO
-				// 3 ——— 2
-				// |  /  |
-				// 1 ——— 0
-				// |  /  |
-				// 5 ——— 4
-				// |  /  |
-				// 7 ——— 6
-			}
-			else if (centerY == 0 && centerX != 0)
-			{
-				// TODO
-				// 3 ——— 2 ——— 5 ——— 7
-				// |  /  |  /  |  /  |
-				// 1 ——— 0 ——— 4 ——— 6
-			}
-		}
-		else
-		{
-			_setVertices(transform, 0, 0, width, height);
-			_useDefaultUvs();
-			_push(texture, blendMode, alpha, colorTransform);
-		}
-	}
-
-	public function _setVertices(transform:Matrix, x:Float, y:Float, w:Float, h:Float):Void
-	{
-		var r = x + w;
-		var b = y + h;
-
-		_transform.copyFrom(transform);
-		_transform.scale(_pixelRatio, _pixelRatio);
-
-		_pos[0] = _transform.__transformX(x, y);
-		_pos[1] = _transform.__transformY(x, y);
-		_pos[2] = _transform.__transformX(r, y);
-		_pos[3] = _transform.__transformY(r, y);
-		_pos[4] = _transform.__transformX(r, b);
-		_pos[5] = _transform.__transformY(r, b);
-		_pos[6] = _transform.__transformX(x, b);
-		_pos[7] = _transform.__transformY(x, b);
-	}
-
-	private function _useDefaultUvs():Void
-	{
-		_uvs[0] = 0;
-		_uvs[1] = 0;
-		_uvs[2] = 1;
-		_uvs[3] = 0;
-		_uvs[4] = 1;
-		_uvs[5] = 1;
-		_uvs[6] = 0;
-		_uvs[7] = 1;
-	}
-
-	private function _setUvs(u:Float, v:Float, s:Float, t:Float):Void
-	{
-		_uvs[0] = u;
-		_uvs[1] = v;
-		_uvs[2] = s;
-		_uvs[3] = v;
-		_uvs[4] = s;
-		_uvs[5] = t;
-		_uvs[6] = u;
-		_uvs[7] = t;
-	}
-
-	private function _setUs(u:Float, s:Float):Void
-	{
-		_uvs[0] = u;
-		_uvs[2] = s;
-		_uvs[4] = s;
-		_uvs[6] = u;
-	}
-
-	private function _setVs(v:Float, t:Float):Void
-	{
-		_uvs[1] = v;
-		_uvs[3] = v;
-		_uvs[5] = t;
-		_uvs[7] = t;
-	}
-
-	private function _push(texture:KxTexture, blendMode:BlendMode, alpha:Float, colorTransform:ColorTransform)
-	{
-		if (!_masks.intersects(_pos))
-		{
-			return;
-		}
-		texture = (texture != null && texture.valid) ? texture : _defaultTexture;
-
-		var textureUnit:Int = -1;
-		var cmd:Command = null;
-		var tail:Command = _commands.length > 0 ? _commands[_commands.length - 1] : null;
-		var newCommand:Bool = (tail == null || tail.blendMode != blendMode || tail.mask != _masks.top() || !tail.rect.equals(_clipRects.top()));
-
-		if (!newCommand)
-		{
-			for (i in 0...tail.textures.length)
-			{
-				var t = tail.textures[i];
-				if (t == texture)
+				if (filterWidth >= 0.5 && filterHeight >= 0.5)
 				{
-					textureUnit = i;
-					break;
+					var needsFill = (object.opaqueBackground != null && (bitmapWidth != filterWidth || bitmapHeight != filterHeight));
+					var fillColor = object.opaqueBackground != null ? (0xFF << 24) | object.opaqueBackground : 0;
+
+					if (object.__renderTarget == null
+						|| bitmapWidth > object.__renderTarget.width
+						|| bitmapHeight > object.__renderTarget.height)
+					{
+						object.__renderTarget = new KxRenderTarget(gl, bitmapWidth, bitmapHeight);
+					}
+					object.__renderTarget.setClearColor(0);
+					if (needsFill)
+					{
+						object.__renderTarget.setClearColor(fillColor);
+					}
+				}
+				else
+				{
+					object.__cacheBitmap = null;
+					if (object.__renderTarget != null)
+					{
+						object.__renderTarget.dispose();
+						object.__renderTarget = null;
+					}
+					return;
 				}
 			}
-			if (textureUnit == -1 && tail.textures.length < _maxTextureUnits)
+
+			if (object.__cacheBitmap == null)
 			{
-				textureUnit = tail.textures.length;
-				tail.textures.push(texture);
+				object.__cacheBitmap = new Bitmap();
+			}
+
+			if (updateTransform)
+			{
+				object.__cacheBitmap.__worldTransform.copyFrom(object.__worldTransform);
+
+				if (bitmapMatrix == object.__renderTransform)
+				{
+					object.__cacheBitmap.__renderTransform.identity();
+					object.__cacheBitmap.__renderTransform.scale(1 / pixelRatio, 1 / pixelRatio);
+					object.__cacheBitmap.__renderTransform.tx = object.__renderTransform.tx + offsetX;
+					object.__cacheBitmap.__renderTransform.ty = object.__renderTransform.ty + offsetY;
+				}
+				else
+				{
+					object.__cacheBitmap.__renderTransform.copyFrom(object.__cacheBitmapMatrix);
+					object.__cacheBitmap.__renderTransform.invert();
+					object.__cacheBitmap.__renderTransform.concat(object.__renderTransform);
+					object.__cacheBitmap.__renderTransform.tx += offsetX;
+					object.__cacheBitmap.__renderTransform.ty += offsetY;
+				}
+			}
+
+			object.__cacheBitmap.smoothing = __allowSmoothing;
+			object.__cacheBitmap.__renderable = object.__renderable;
+			object.__cacheBitmap.__worldAlpha = object.__worldAlpha;
+			object.__cacheBitmap.__worldBlendMode = object.__worldBlendMode;
+			object.__cacheBitmap.__worldShader = object.__worldShader;
+			object.__cacheBitmap.mask = object.__mask;
+
+			if (needRender)
+			{
+				var renderer = _pushRenderer();
+
+				renderer._worldAlpha = 1 / object.__worldAlpha;
+				renderer._worldTransform.copyFrom(object.__renderTransform);
+				renderer._worldTransform.invert();
+				renderer._worldTransform.concat(object.__cacheBitmapMatrix);
+				renderer._worldTransform.tx -= offsetX;
+				renderer._worldTransform.ty -= offsetY;
+				//renderer._worldTransform.scale(pixelRatio, pixelRatio);
+				renderer._worldColorTransform.__copyFrom(_colorTransform);
+				renderer._worldColorTransform.__invert();
+				renderer.render(object, object.__renderTarget);
+				if (hasFilters)
+				{
+					_renderFilters(object, filterWidth, filterHeight);
+				}
+				_popRenderer();
 			}
 		}
-		if (newCommand || textureUnit == -1)
+		else if (object.__cacheBitmap != null)
 		{
-			textureUnit = 0;
-			cmd = new Command(_masks.top(), _clipRects.cacheTop(), blendMode, texture, _vertices.getNumIndices(), 6);
-			_commands.push(cmd);
+			object.__cacheBitmap = null;
+			if (object.__renderTarget != null)
+			{
+				object.__renderTarget.dispose();
+				object.__renderTarget = null;
+			}
 		}
-		else
-		{
-			cmd = tail;
-			cmd.count += 6;
-		}
-
-		_masks.apply(texture, _pos, _uvs, _muv);
-
-		var ct = colorTransform != null ? colorTransform : IDENTITY_COLOR_TRANSFORM;
-		var alphaOffset = ct.alphaOffset * alpha;
-		var j = 0;
-		for (i in 0...4)
-		{
-			var k0 = i * 2;
-			var k1 = k0 + 1;
-			_vertexCache[j++] = _pos[k0];
-			_vertexCache[j++] = _pos[k1];
-			_vertexCache[j++] = _uvs[k0];
-			_vertexCache[j++] = _uvs[k1];
-			_vertexCache[j++] = _muv[k0];
-			_vertexCache[j++] = _muv[k1];
-			_vertexCache[j++] = ct.redMultiplier;
-			_vertexCache[j++] = ct.greenMultiplier;
-			_vertexCache[j++] = ct.blueMultiplier;
-			_vertexCache[j++] = alpha;
-			_vertexCache[j++] = ct.redOffset;
-			_vertexCache[j++] = ct.greenOffset;
-			_vertexCache[j++] = ct.blueOffset;
-			_vertexCache[j++] = alphaOffset;
-			_vertexCache[j++] = textureUnit;
-		}
-		_vertices.push(_vertexCache, QUAD_INDICES);
 	}
-}
 
-private class Command
-{
-	public var mask:DisplayObject;
-	public var rect:KxRect;
-	public var blendMode:BlendMode;
-	public var textures:Array<KxTexture>;
-	public var offset:Int;
-	public var count:Int;
-
-	public function new(mask:DisplayObject, rect:KxRect, blendMode:BlendMode, texture:KxTexture, offset:Int, count:Int)
+	private function _renderFilters(object:DisplayObject, width:Int, height:Int):Void
 	{
-		this.mask = mask;
-		this.rect = rect;
-		this.blendMode = blendMode;
-		this.textures = [ texture ];
-		this.offset = offset;
-		this.count = count;
+		for (filter in object.__filters)
+		{
+			filter.__renderDirty = false;
+		}
+	}
+
+	private function _pushRenderer():KxBatchRenderer
+	{
+		if (_currentRenderer >= _cacheRenderers.length)
+		{
+			_cacheRenderers.push(new KxBatchRenderer(this));
+		}
+		var renderer = _cacheRenderers[_currentRenderer++];
+		return renderer;
+	}
+
+	private function _popRenderer():Void
+	{
+		--_currentRenderer;
 	}
 }
 

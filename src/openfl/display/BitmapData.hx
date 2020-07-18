@@ -206,12 +206,10 @@ class BitmapData implements IBitmapDrawable
 
 
 	#if kixeye
-	static private var __renderer:KxRenderer = null;
-	private var __renderTarget:KxRenderTarget = null;
 	private var __texture:KxTexture = null;
 	private var __textureVersion:Int = -1;
-	#else
-	static private var __renderer:DisplayObjectRenderer;
+
+	private var __renderTarget = null;
 	#end
 
 	/**
@@ -401,7 +399,6 @@ class BitmapData implements IBitmapDrawable
 
 			#if kixeye
 			bitmapData.__texture = __texture;
-			bitmapData.__renderTarget = __renderTarget;
 			#end
 		}
 		else
@@ -775,10 +772,8 @@ class BitmapData implements IBitmapDrawable
 			__texture = null;
 			__textureVersion = -1;
 		}
-
 		if (__renderTarget != null)
 		{
-			__renderTarget.dispose();
 			__renderTarget = null;
 		}
 		#end
@@ -900,8 +895,6 @@ class BitmapData implements IBitmapDrawable
 		{
 			_colorTransform.__combine(colorTransform);
 		}
-
-		__renderer.__allowSmoothing = smoothing;
 
 		/*
 		if (!readable && __hardwareRenderer != null && getTexture(__hardwareRenderer.context3D) != null)
@@ -1513,6 +1506,11 @@ class BitmapData implements IBitmapDrawable
 	@:dox(hide) public function getTexture(gl:WebGLRenderingContext):KxTexture
 	{
 		if (!__isValid) return null;
+
+		if (__renderTarget != null)
+		{
+			return __renderTarget.texture;
+		}
 
 		if (image == null)
 		{

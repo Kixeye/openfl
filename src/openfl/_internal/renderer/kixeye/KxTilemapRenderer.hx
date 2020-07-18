@@ -20,15 +20,20 @@ import openfl.geom.Rectangle;
 @:access(openfl.geom.ColorTransform)
 @:access(openfl.geom.Matrix)
 @:access(openfl.geom.Rectangle)
-@:access(openfl._internal.renderer.kixeye.KxRenderer)
+@:access(openfl._internal.renderer.kixeye.KxBatchRenderer)
 class KxTilemapRenderer
 {
 	private var cacheColorTransform = new ColorTransform();
-	private var _renderer:KxRenderer;
+	private var _batcher:KxBatchRenderer;
 
-	public function new (renderer:KxRenderer)
+	public function new (batcher:KxBatchRenderer)
 	{
-		_renderer = renderer;
+		_batcher = batcher;
+	}
+
+	public function dispose():Void
+	{
+		_batcher = null;
 	}
 
 	public function render(tilemap:Tilemap)
@@ -150,8 +155,8 @@ class KxTilemapRenderer
 				tileWidth = tileRect.width;
 				tileHeight = tileRect.height;
 
-				_renderer._setVertices(tileTransform, 0, 0, tileWidth, tileHeight);
-				_renderer._setUvs(uvX, uvY, uvWidth, uvHeight);
+				_batcher._setVertices(tileTransform, 0, 0, tileWidth, tileHeight);
+				_batcher._setUvs(uvX, uvY, uvWidth, uvHeight);
 
 				var blendMode = tilemap.__worldBlendMode;
 				if (tilemap.tileBlendModeEnabled)
@@ -159,7 +164,7 @@ class KxTilemapRenderer
 					blendMode = (tile.__blendMode != null) ? tile.__blendMode : blendMode;
 				}
 
-				_renderer._push(bitmapData.getTexture(_renderer.gl), blendMode, alpha, colorTransform);
+				_batcher._push(bitmapData.getTexture(_batcher.gl), blendMode, alpha, colorTransform);
 			}
 		}
 		group.__dirty = false;

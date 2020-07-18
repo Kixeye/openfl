@@ -892,7 +892,8 @@ class DisplayObject extends EventDispatcher implements IBitmapDrawable #if (open
 
 	#if kixeye
 	@:noCompletion private var __renderTarget:KxRenderTarget = null;
-	@:noCompletion private var __renderTargetMatrix:Matrix = null;
+	@:noCompletion private var __cacheBitmapMatrix:Matrix = null;
+	@:noCompletion private var __cacheBitmapBackground:Null<Int> = null;
 	#end
 
 	@:noCompletion private var __cacheBitmap:Bitmap = null;

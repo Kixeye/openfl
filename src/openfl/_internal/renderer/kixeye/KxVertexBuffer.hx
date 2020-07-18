@@ -10,6 +10,8 @@ class KxVertexBuffer implements KxGLResource
 {
 	private static inline var NUM_BUFFERS:Int = 2; // double buffering
 
+	private var _attributes:Array<KxVertexAttribute> = null;
+
 	private var _gl:WebGLRenderingContext;
 	private var _bufferIndex:Int = 0;
 	private var _vertexBuffers:Array<Buffer> = [];
@@ -17,7 +19,6 @@ class KxVertexBuffer implements KxGLResource
 	private var _vertices:Float32Array = null;
 	private var _indices:UInt16Array = null;
 
-	private var _attributes:Array<Attribute> = [];
 	private var _stride:Int = 0;
 
 	private var _numFloats:Int = 0;
@@ -48,16 +49,22 @@ class KxVertexBuffer implements KxGLResource
 		{
 			_gl.deleteBuffer(buffer);
 		}
-		_vertexBuffers = [];
-		_indexBuffers = [];
+		_attributes = null;
+		_vertexBuffers = null;
+		_indexBuffers = null;
 		_vertices = null;
 		_indices = null;
+		_gl = null;
 	}
 
-	public function attribute(name:String, size:Int, norm:Bool):Void
+	public function setAttributes(attributes:Array<KxVertexAttribute>):Void
 	{
-		_attributes.push(new Attribute(name, size, norm));
-		_stride += size;
+		_attributes = attributes;
+		_stride = 0;
+		for (attr in _attributes)
+		{
+			_stride += attr.size;
+		}
 	}
 
 	public function commit(maxVertices:Int, maxIndices:Int):Int
@@ -136,7 +143,7 @@ class KxVertexBuffer implements KxGLResource
 		for (attr in _attributes)
 		{
 			_gl.enableVertexAttribArray(index);
-			_gl.vertexAttribPointer(index, attr.size, _gl.FLOAT, attr.norm, strideBytes, offsetBytes);
+			_gl.vertexAttribPointer(index, attr.size, _gl.FLOAT, attr.normalize, strideBytes, offsetBytes);
 			offsetBytes += attr.size * 4;
 			++index;
 		}
@@ -152,19 +159,5 @@ class KxVertexBuffer implements KxGLResource
 		{
 			_gl.drawArrays(_gl.TRIANGLES, offset, count);
 		}
-	}
-}
-
-private class Attribute
-{
-	public var name:String;
-	public var size:Int;
-	public var norm:Bool;
-
-	public function new(name:String, size:Int, norm:Bool)
-	{
-		this.name = name;
-		this.size = size;
-		this.norm = norm;
 	}
 }

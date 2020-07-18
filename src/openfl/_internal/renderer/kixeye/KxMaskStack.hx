@@ -19,7 +19,6 @@ import openfl._internal.backend.gl.WebGLRenderingContext;
 class KxMaskStack
 {
 	private var _renderer:KxRenderer;
-	private var _whiteTexture:KxTexture;
 	private var _stack:Array<DisplayObject> = [];
 	private var _maskRect = new KxRect();
 	private var _objRect = new KxRect();
@@ -28,8 +27,11 @@ class KxMaskStack
 	public function new(renderer:KxRenderer)
 	{
 		_renderer = renderer;
-		_whiteTexture = new KxTexture(_renderer.gl, null);
-		_whiteTexture.uploadWhite();
+	}
+
+	public function dispose():Void
+	{
+		_renderer = null;
 	}
 
 	public function top():DisplayObject
@@ -63,12 +65,12 @@ class KxMaskStack
 		}
 		else
 		{
-			var pixelRatio = _renderer._pixelRatio;
+			var pixelRatio = _renderer.pixelRatio;
 
-			var l = Math.min(pos[0], pos[2]);
-			var r = Math.max(pos[0], pos[2]);
-			var t = Math.min(pos[1], pos[5]);
-			var b = Math.max(pos[1], pos[5]);
+			var l = pos[0]; //Math.min(pos[0], pos[2]);
+			var r = pos[2]; //Math.max(pos[0], pos[2]);
+			var t = pos[1]; //Math.min(pos[1], pos[5]);
+			var b = pos[5]; //Math.max(pos[1], pos[5]);
 
 			_objRect.set(l, t, r - l, b - t);
 
@@ -129,12 +131,12 @@ class KxMaskStack
 	{
 		if (obj == null)
 		{
-			_whiteTexture.bind(_renderer._maskUnit, false);
+			_renderer.whiteTexture.bind(_renderer.maskUnit, false);
 		}
 		else
 		{
-			var texture = getTexture(obj);
-			texture.bind(_renderer._maskUnit, true);
+
+			obj.__renderTarget.texture.bind(_renderer.maskUnit, true);
 		}
 	}
 
@@ -145,42 +147,13 @@ class KxMaskStack
 
 	public function push(obj:DisplayObject):Void
 	{
-		var o = null;
-
-		if (obj.__graphics != null && obj.__graphics.__bitmap != null)
+		obj.cacheAsBitmap = true;
+		_renderer.updateCacheBitmap(obj);
+		if (obj.__renderTarget != null)
 		{
-			o = obj;
+			_stack.push(obj);
+			update();
 		}
-		else if (obj.__type == BITMAP)
-		{
-			var bmp:Bitmap = cast obj;
-			if (bmp.bitmapData != null)
-			{
-				o = obj;
-			}
-		}
-		else if (obj.__type == DISPLAY_OBJECT_CONTAINER)
-		{
-			var container:DisplayObjectContainer = cast obj;
-			if (container.__children.length == 1)
-			{
-				var child = container.__children[0];
-				if (child.__graphics != null || child.__graphics.__bitmap != null)
-				{
-					o = obj;
-				}
-				else if (child.__type == BITMAP)
-				{
-					var bmp:Bitmap = cast obj;
-					if (bmp.bitmapData != null)
-					{
-						o = obj;
-					}
-				}
-			}
-		}
-		_stack.push(o);
-		update();
 	}
 
 	public function pop():Void
@@ -189,52 +162,14 @@ class KxMaskStack
 		update();
 	}
 
-	private function getTexture(obj:DisplayObject):KxTexture
-	{
-		if (obj.__type == BITMAP)
-		{
-			var bmp:Bitmap = cast obj;
-			return bmp.__bitmapData.getTexture(_renderer.gl);
-		}
-		else if (obj.__type == DISPLAY_OBJECT_CONTAINER)
-		{
-			var container:DisplayObjectContainer = cast obj;
-			if (container.__children.length == 1)
-			{
-				var child = container.__children[0];
-				return getTexture(child);
-			}
-		}
-		var texture = obj.__graphics.__bitmap.getTexture(_renderer.gl);
-		texture.pixelScale = _renderer._pixelRatio;
-		return texture;
-	}
-
-	private function getTransform(obj:DisplayObject):Matrix
-	{
-		if (obj.__type == BITMAP)
-		{
-			return obj.__renderTransform;
-		}
-		else if (obj.__type == DISPLAY_OBJECT_CONTAINER)
-		{
-			var container:DisplayObjectContainer = cast obj;
-			if (container.__children.length == 1)
-			{
-				var child = container.__children[0];
-				return getTransform(child);
-			}
-		}
-		return obj.__graphics.__worldTransform;
-	}
-
 	private function update():Void
 	{
 		var obj = top();
 		if (obj != null)
 		{
-			var texture = getTexture(obj);
-			var transform = getTransform(obj);
+			var pixelRatio = _renderer.pixelRatio;
+			var texture = obj.__renderTarget.texture;
+			var transform = obj.__cacheBitmap.__renderTransform;
 			var right:Float = texture._width;
 			var bottom:Float = texture._height;
 			var x = transform.__transformX(0, 0);
@@ -242,8 +177,7 @@ class KxMaskStack
 			var w = transform.__transformX(right, bottom) - x;
 			var h = transform.__transformY(right, bottom) - y;
 			_maskRect.set(x, y, w, h);
-			_maskRect.scale(_renderer._pixelRatio);
-			var pixelRatio = _renderer._pixelRatio;
+			_maskRect.scale(pixelRatio);
 			_pixelSize.setTo((1.0 / right) * (texture.pixelScale / pixelRatio), (1.0 / bottom) * (texture.pixelScale / pixelRatio));
 		}
 	}
