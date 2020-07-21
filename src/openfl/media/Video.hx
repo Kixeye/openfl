@@ -283,17 +283,16 @@ class Video extends DisplayObject
 		#if openfl_html5
 		if (__stream == null || __stream.__video == null) return null;
 
-		var internalFormat = gl.RGBA;
-		var format = gl.RGBA;
+		var video = __stream.__video;
 
-		if (!__stream.__closed && __stream.__video.currentTime != __textureTime)
+		if (!__stream.__closed && video.currentTime != __textureTime && video.readyState > 0)
 		{
 			if (__texture == null)
 			{
 				__texture = new KxTexture(gl, null);
 			}
-			__texture.uploadVideo(__stream.__video);
-			__textureTime = __stream.__video.currentTime;
+			__texture.uploadVideo(video, Std.int(__width), Std.int(__height));
+			__textureTime = video.currentTime;
 		}
 
 		return __texture;
