@@ -121,7 +121,7 @@ class KxRenderer extends DisplayObjectRenderer
 		gl.enable(gl.BLEND);
 		gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
-		_defaultTexture = new KxTexture(gl, null);
+		_defaultTexture = new KxTexture(this, null);
 		_defaultTexture.uploadDefault();
 
 		_vertices = new KxVertexBuffer(gl);
@@ -316,7 +316,7 @@ class KxRenderer extends DisplayObjectRenderer
 		{
 			if (object.__graphics != null && object.__graphics.__visible && object.__graphics.__bitmap != null)
 			{
-				var texture = object.__graphics.__bitmap.getTexture(gl);
+				var texture = object.__graphics.__bitmap.getTexture(this);
 				texture.pixelScale = _pixelRatio;
 				_pushQuad(object, texture, object.__graphics.__worldTransform);
 			}
@@ -325,7 +325,7 @@ class KxRenderer extends DisplayObjectRenderer
 				var bmp:Bitmap = cast object;
 				if (bmp.__bitmapData != null)
 				{
-					_pushQuad(bmp, bmp.__bitmapData.getTexture(gl), bmp.__renderTransform);
+					_pushQuad(bmp, bmp.__bitmapData.getTexture(this), bmp.__renderTransform);
 				}
 			}
 			else if (object.__type == TILEMAP)
@@ -335,7 +335,7 @@ class KxRenderer extends DisplayObjectRenderer
 			else if (object.__type == VIDEO)
 			{
 				var video:Video = cast object;
-				var texture = video.__getTexture(gl);
+				var texture = video.__getTexture(this);
 				if (texture != null)
 				{
 					_pushQuad(video, texture, video.__renderTransform);

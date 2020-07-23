@@ -1510,7 +1510,7 @@ class BitmapData implements IBitmapDrawable
 	}
 
 	#if kixeye
-	@:dox(hide) public function getTexture(gl:WebGLRenderingContext):KxTexture
+	@:dox(hide) public function getTexture(renderer:KxRenderer):KxTexture
 	{
 		if (!__isValid) return null;
 
@@ -1524,7 +1524,7 @@ class BitmapData implements IBitmapDrawable
 			}
 			return null;
 		}
-		if (__texture != null && __texture.gl != gl)
+		if (__texture != null && __texture.renderer != renderer)
 		{
 			__texture.dispose();
 			__texture = null;
@@ -1540,7 +1540,7 @@ class BitmapData implements IBitmapDrawable
 		{
 			if (__texture == null)
 			{
-				__texture = new KxTexture(gl, image);
+				__texture = new KxTexture(renderer, image);
 			}
 			else
 			{

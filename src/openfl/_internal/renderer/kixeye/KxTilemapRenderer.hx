@@ -159,7 +159,7 @@ class KxTilemapRenderer
 					blendMode = (tile.__blendMode != null) ? tile.__blendMode : blendMode;
 				}
 
-				_renderer._push(bitmapData.getTexture(_renderer.gl), blendMode, alpha, colorTransform);
+				_renderer._push(bitmapData.getTexture(_renderer), blendMode, alpha, colorTransform);
 			}
 		}
 		group.__dirty = false;

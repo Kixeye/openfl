@@ -28,7 +28,7 @@ class KxMaskStack
 	public function new(renderer:KxRenderer)
 	{
 		_renderer = renderer;
-		_whiteTexture = new KxTexture(_renderer.gl, null);
+		_whiteTexture = new KxTexture(_renderer, null);
 		_whiteTexture.uploadWhite();
 	}
 
@@ -194,7 +194,7 @@ class KxMaskStack
 		if (obj.__type == BITMAP)
 		{
 			var bmp:Bitmap = cast obj;
-			return bmp.__bitmapData.getTexture(_renderer.gl);
+			return bmp.__bitmapData.getTexture(_renderer);
 		}
 		else if (obj.__type == DISPLAY_OBJECT_CONTAINER)
 		{
@@ -205,7 +205,7 @@ class KxMaskStack
 				return getTexture(child);
 			}
 		}
-		var texture = obj.__graphics.__bitmap.getTexture(_renderer.gl);
+		var texture = obj.__graphics.__bitmap.getTexture(_renderer);
 		texture.pixelScale = _renderer._pixelRatio;
 		return texture;
 	}

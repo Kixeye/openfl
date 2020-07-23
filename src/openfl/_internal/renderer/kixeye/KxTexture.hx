@@ -10,6 +10,7 @@ import openfl._internal.backend.gl.WebGLRenderingContext;
 
 class KxTexture implements KxGLResource
 {
+	public var renderer:KxRenderer;
 	public var gl:WebGLRenderingContext;
 	public var version:Int = -1;
 	private var _texture:Texture = null;
@@ -26,9 +27,10 @@ class KxTexture implements KxGLResource
 	private var _src:Dynamic = null;
 	#end
 
-	public function new(gl:WebGLRenderingContext, image:Image)
+	public function new(renderer:KxRenderer, image:Image)
 	{
-		this.gl = gl;
+		this.renderer = renderer;
+		this.gl = renderer.gl;
 
 		_texture = gl.createTexture();
 		gl.bindTexture(gl.TEXTURE_2D, _texture);

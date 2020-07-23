@@ -17,6 +17,7 @@ import openfl.geom.Rectangle;
 import openfl.net.NetStream;
 
 import openfl._internal.backend.gl.WebGLRenderingContext;
+import openfl._internal.renderer.kixeye.KxRenderer;
 import openfl._internal.renderer.kixeye.KxTexture;
 
 
@@ -278,7 +279,7 @@ class Video extends DisplayObject
 		Rectangle.__pool.release(bounds);
 	}
 
-	@:noCompletion private function __getTexture(gl:WebGLRenderingContext):KxTexture
+	@:noCompletion private function __getTexture(renderer:KxRenderer):KxTexture
 	{
 		#if openfl_html5
 		if (__stream == null || __stream.__video == null) return null;
@@ -287,9 +288,15 @@ class Video extends DisplayObject
 
 		if (!__stream.__closed && video.currentTime != __textureTime && video.readyState > 0)
 		{
+			if (__texture != null && __texture.renderer != renderer)
+			{
+				__texture.dispose();
+				__texture = null;
+			}
+
 			if (__texture == null)
 			{
-				__texture = new KxTexture(gl, null);
+				__texture = new KxTexture(renderer, null);
 			}
 			__texture.uploadVideo(video, Std.int(__width), Std.int(__height));
 			__textureTime = video.currentTime;
