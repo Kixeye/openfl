@@ -2,6 +2,7 @@ package openfl._internal.renderer.kixeye;
 
 import openfl.geom.Point;
 import openfl.geom.Matrix;
+import openfl.geom.ColorTransform;
 import openfl.display.Bitmap;
 import openfl.display.DisplayObject;
 import openfl.display.DisplayObjectContainer;
@@ -18,18 +19,30 @@ import openfl._internal.backend.gl.WebGLRenderingContext;
 @:access(openfl._internal.renderer.kixeye.KxRenderer)
 class KxMaskStack
 {
+	private static var QUAD_INDICES:Array<Int> = [0, 1, 2, 0, 2, 3];
+	private static var DEFAULT_MUV:Array<Float> = [ 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5 ];
+
+	public var vertices:Array<Float>;
+	public var indices:Array<Int>;
+	public var numVertices:Int;
+	public var numIndices:Int;
+
+	private var _indices:Array<Int>;
+
 	private var _renderer:KxRenderer;
 	private var _whiteTexture:KxTexture;
 	private var _stack:Array<DisplayObject> = [];
+	private var _clipPoly = new KxClipPoly();
 	private var _maskRect = new KxRect();
-	private var _objRect = new KxRect();
-	private var _pixelSize = new Point();
 
 	public function new(renderer:KxRenderer)
 	{
 		_renderer = renderer;
 		_whiteTexture = new KxTexture(_renderer, null);
 		_whiteTexture.uploadWhite();
+
+		vertices = [for (i in 0..._renderer._vertexStride * 8) 0.0];
+		_indices = [for (i in 0...18) 0];
 	}
 
 	public function top():DisplayObject
@@ -44,84 +57,66 @@ class KxMaskStack
 		{
 			return true;
 		}
-		return _maskRect.intersects(pos);
+		return _clipPoly.intersects(pos);
 	}
 
-	public function apply(texture:KxTexture, pos:Array<Float>, uv:Array<Float>, muv:Array<Float>):Void
+	public function clip(texture:KxTexture, unit:Int, ct:ColorTransform, alpha:Float, pos:Array<Float>, uv:Array<Float>):Void
 	{
+		var posRef:Array<Float>;
+		var uvRef:Array<Float>;
+		var muvRef:Array<Float>;
 		var obj = top();
 		if (obj == null)
 		{
-			muv[0] = 0.5;
-			muv[1] = 0.5;
-			muv[2] = 0.5;
-			muv[3] = 0.5;
-			muv[4] = 0.5;
-			muv[5] = 0.5;
-			muv[6] = 0.5;
-			muv[7] = 0.5;
+			posRef = pos;
+			uvRef = uv;
+			muvRef = DEFAULT_MUV;
+			numVertices = 4;
+
+			indices = QUAD_INDICES;
+			numIndices = QUAD_INDICES.length;
 		}
 		else
 		{
-			var pixelRatio = _renderer._pixelRatio;
+			numVertices = _clipPoly.clip(pos, uv);
 
-			var l = Math.min(pos[0], pos[2]);
-			var r = Math.max(pos[0], pos[2]);
-			var t = Math.min(pos[1], pos[5]);
-			var b = Math.max(pos[1], pos[5]);
+			posRef = _clipPoly.output;
+			uvRef = _clipPoly.uvout;
+			muvRef = _clipPoly.muvout;
 
-			_objRect.set(l, t, r - l, b - t);
+			var numTriangles = numVertices - 2;
+			numIndices = numTriangles * 6;
+			var i = 0;
+			for (t in 0...numTriangles)
+			{
+				_indices[i++] = t + 1;
+				_indices[i++] = t + 2;
+				_indices[i++] = 0;
+			}
+			indices = _indices;
+		}
 
-			var ipx = (1.0 / texture._width) * (texture.pixelScale / pixelRatio);
-			var ipy = (1.0 / texture._height) * (texture.pixelScale / pixelRatio);
-
-			_objRect.clip(_maskRect);
-
-			var objRight = _objRect.x + _objRect.w;
-			var objBottom = _objRect.y + _objRect.h;
-
-			var ld = (_objRect.x - pos[0]) * ipx;
-			var td = (_objRect.y - pos[1]) * ipy;
-			var rd = (pos[4] - objRight) * ipx;
-			var bd = (pos[5] - objBottom) * ipy;
-
-			pos[0] = _objRect.x;
-			pos[1] = _objRect.y;
-
-			pos[2] = objRight;
-			pos[3] = _objRect.y;
-
-			pos[4] = objRight;
-			pos[5] = objBottom;
-
-			pos[6] = _objRect.x;
-			pos[7] = objBottom;
-
-			uv[0] += ld;
-			uv[1] += td;
-			uv[2] -= rd;
-			uv[3] += td;
-			uv[4] -= rd;
-			uv[5] -= bd;
-			uv[6] += ld;
-			uv[7] -= bd;
-
-			var maskRight = _maskRect.x + _maskRect.w;
-			var maskBottom = _maskRect.y + _maskRect.h;
-
-			var ml = (_objRect.x - _maskRect.x) * _pixelSize.x;
-			var mt = (_objRect.y - _maskRect.y) * _pixelSize.y;
-			var mr = 1.0 - ((maskRight - objRight) * _pixelSize.x);
-			var mb = 1.0 - ((maskBottom - objBottom) * _pixelSize.y);
-
-			muv[0] = ml;
-			muv[1] = mt;
-			muv[2] = mr;
-			muv[3] = mt;
-			muv[4] = mr;
-			muv[5] = mb;
-			muv[6] = ml;
-			muv[7] = mb;
+		var alphaOffset = ct.alphaOffset * alpha;
+		var j = 0;
+		for (i in 0...numVertices)
+		{
+			var k0 = i * 2;
+			var k1 = k0 + 1;
+			vertices[j++] = posRef[k0];
+			vertices[j++] = posRef[k1];
+			vertices[j++] = uvRef[k0];
+			vertices[j++] = uvRef[k1];
+			vertices[j++] = muvRef[k0];
+			vertices[j++] = muvRef[k1];
+			vertices[j++] = ct.redMultiplier;
+			vertices[j++] = ct.greenMultiplier;
+			vertices[j++] = ct.blueMultiplier;
+			vertices[j++] = alpha;
+			vertices[j++] = ct.redOffset;
+			vertices[j++] = ct.greenOffset;
+			vertices[j++] = ct.blueOffset;
+			vertices[j++] = alphaOffset;
+			vertices[j++] = unit;
 		}
 	}
 
@@ -237,14 +232,9 @@ class KxMaskStack
 			var transform = getTransform(obj);
 			var right:Float = texture._width;
 			var bottom:Float = texture._height;
-			var x = transform.__transformX(0, 0);
-			var y = transform.__transformY(0, 0);
-			var w = transform.__transformX(right, bottom) - x;
-			var h = transform.__transformY(right, bottom) - y;
-			_maskRect.set(x, y, w, h);
-			_maskRect.scale(_renderer._pixelRatio);
 			var pixelRatio = _renderer._pixelRatio;
-			_pixelSize.setTo((1.0 / right) * (texture.pixelScale / pixelRatio), (1.0 / bottom) * (texture.pixelScale / pixelRatio));
+			_maskRect.set(0, 0, texture._width, texture._height);
+			_clipPoly.setRect(_maskRect, transform, pixelRatio);
 		}
 	}
 }

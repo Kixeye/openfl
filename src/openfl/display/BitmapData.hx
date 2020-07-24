@@ -1526,7 +1526,6 @@ class BitmapData implements IBitmapDrawable
 		}
 		if (__texture != null && __texture.renderer != renderer)
 		{
-			__texture.dispose();
 			__texture = null;
 			__textureVersion = -1;
 		}

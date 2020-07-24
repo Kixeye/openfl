@@ -92,20 +92,20 @@ class KxVertexBuffer implements KxGLResource
 		_numIndices = 0;
 	}
 
-	public function push(vertices:Array<Float>, indices:Array<Int>):Void
+	public function push(vertices:Array<Float>, numFloats:Int, indices:Array<Int>, numIndices:Int):Void
 	{
 		var offset = getNumVertices();
 
-		for (v in vertices)
+		for (i in 0...numFloats)
 		{
-			_vertices[_numFloats++] = v;
+			_vertices[_numFloats++] = vertices[i];
 		}
 
 		if (indices != null)
 		{
-			for (i in indices)
+			for (i in 0...numIndices)
 			{
-				_indices[_numIndices++] = offset + i;
+				_indices[_numIndices++] = offset + indices[i];
 			}
 		}
 	}

@@ -46,7 +46,6 @@ class KxRenderer extends DisplayObjectRenderer
 	private static inline var MAX_VERTICES:Int = 32768;
 	private static inline var MAX_INDICES:Int = 49152;
 	private static var IDENTITY_COLOR_TRANSFORM = new ColorTransform();
-	private static var QUAD_INDICES:Array<Int> = [0, 1, 2, 0, 2, 3];
 
 	public var gl:WebGLRenderingContext;
 
@@ -69,8 +68,6 @@ class KxRenderer extends DisplayObjectRenderer
 
 	private var _pos:Array<Float> = [0, 0, 0, 0, 0, 0, 0, 0];
 	private var _uvs:Array<Float> = [0, 0, 0, 0, 0, 0, 0, 0];
-	private var _muv:Array<Float> = [0, 0, 0, 0, 0, 0, 0, 0];
-	private var _vertexCache:Array<Float> = null;
 	private var _transform = new Matrix();
 
 	private var _commands:Array<Command> = [];
@@ -131,7 +128,6 @@ class KxRenderer extends DisplayObjectRenderer
 		_vertices.attribute("a_colorOffset", 4, false);
 		_vertices.attribute("a_textureId", 1, false);
 		_vertexStride = _vertices.commit(MAX_VERTICES, MAX_INDICES);
-		_vertexCache = [for (i in 0..._vertexStride * 4) 0.0];
 
 		_shader = new KxShader(gl);
 		_shader.compile(QuadShader.VERTEX, QuadShader.FRAGMENT);
@@ -216,7 +212,7 @@ class KxRenderer extends DisplayObjectRenderer
 		var quads = 0;
 		for (cmd in _commands)
 		{
-			if (_clipRects.scissor(cmd.rect))
+			if (cmd.count > 0 && _clipRects.scissor(cmd.rect))
 			{
 				_setBlendMode(cmd.blendMode);
 				for (i in 0...cmd.textures.length)
@@ -576,13 +572,9 @@ class KxRenderer extends DisplayObjectRenderer
 
 	private function _push(texture:KxTexture, blendMode:BlendMode, alpha:Float, colorTransform:ColorTransform)
 	{
-		if (!_masks.intersects(_pos))
-		{
-			return;
-		}
 		texture = (texture != null && texture.valid) ? texture : _defaultTexture;
 
-		var textureUnit:Int = -1;
+		var unit:Int = -1;
 		var cmd:Command = null;
 		var tail:Command = _commands.length > 0 ? _commands[_commands.length - 1] : null;
 		var newCommand:Bool = (tail == null || tail.blendMode != blendMode || tail.mask != _masks.top() || !tail.rect.equals(_clipRects.top()));
@@ -594,54 +586,34 @@ class KxRenderer extends DisplayObjectRenderer
 				var t = tail.textures[i];
 				if (t == texture)
 				{
-					textureUnit = i;
+					unit = i;
 					break;
 				}
 			}
-			if (textureUnit == -1 && tail.textures.length < _maxTextureUnits)
+			if (unit == -1 && tail.textures.length < _maxTextureUnits)
 			{
-				textureUnit = tail.textures.length;
+				unit = tail.textures.length;
 				tail.textures.push(texture);
 			}
 		}
-		if (newCommand || textureUnit == -1)
+		if (newCommand || unit == -1)
 		{
-			textureUnit = 0;
-			cmd = new Command(_masks.top(), _clipRects.cacheTop(), blendMode, texture, _vertices.getNumIndices(), 6);
+			unit = 0;
+			cmd = new Command(_masks.top(), _clipRects.cacheTop(), blendMode, texture, _vertices.getNumIndices());
 			_commands.push(cmd);
 		}
 		else
 		{
 			cmd = tail;
-			cmd.count += 6;
 		}
-
-		_masks.apply(texture, _pos, _uvs, _muv);
 
 		var ct = colorTransform != null ? colorTransform : IDENTITY_COLOR_TRANSFORM;
-		var alphaOffset = ct.alphaOffset * alpha;
-		var j = 0;
-		for (i in 0...4)
+		_masks.clip(texture, unit, ct, alpha, _pos, _uvs);
+		if (_masks.numVertices > 0)
 		{
-			var k0 = i * 2;
-			var k1 = k0 + 1;
-			_vertexCache[j++] = _pos[k0];
-			_vertexCache[j++] = _pos[k1];
-			_vertexCache[j++] = _uvs[k0];
-			_vertexCache[j++] = _uvs[k1];
-			_vertexCache[j++] = _muv[k0];
-			_vertexCache[j++] = _muv[k1];
-			_vertexCache[j++] = ct.redMultiplier;
-			_vertexCache[j++] = ct.greenMultiplier;
-			_vertexCache[j++] = ct.blueMultiplier;
-			_vertexCache[j++] = alpha;
-			_vertexCache[j++] = ct.redOffset;
-			_vertexCache[j++] = ct.greenOffset;
-			_vertexCache[j++] = ct.blueOffset;
-			_vertexCache[j++] = alphaOffset;
-			_vertexCache[j++] = textureUnit;
+			_vertices.push(_masks.vertices, _masks.numVertices * _vertexStride, _masks.indices, _masks.numIndices);
+			cmd.count += _masks.numIndices;
 		}
-		_vertices.push(_vertexCache, QUAD_INDICES);
 	}
 }
 
@@ -654,14 +626,14 @@ private class Command
 	public var offset:Int;
 	public var count:Int;
 
-	public function new(mask:DisplayObject, rect:KxRect, blendMode:BlendMode, texture:KxTexture, offset:Int, count:Int)
+	public function new(mask:DisplayObject, rect:KxRect, blendMode:BlendMode, texture:KxTexture, offset:Int)
 	{
 		this.mask = mask;
 		this.rect = rect;
 		this.blendMode = blendMode;
 		this.textures = [ texture ];
 		this.offset = offset;
-		this.count = count;
+		this.count = 0;
 	}
 }
 
