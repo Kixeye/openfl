@@ -199,23 +199,10 @@ class KxClipPoly
 		}
 	}
 
-
 	private function _inside(x:Float, y:Float, x1:Float, y1:Float, x2:Float, y2:Float):Bool
 	{
 		return (x2 - x1) * (y - y1) >= (y2 - y1) * (x - x1);
 	}
-
-// point2D intersection(point2D cp1, point2D cp2, point2D s, point2D e)
-// {
-//     point2D dc = { cp1.x - cp2.x, cp1.y - cp2.y };
-//     point2D dp = { s.x - e.x, s.y - e.y };
-
-//     float n1 = cp1.x * cp2.y - cp1.y * cp2.x;
-//     float n2 = s.x * e.y - s.y * e.x;
-//     float n3 = 1.0 / (dc.x * dp.y - dc.y * dp.x);
-
-//     return { (n1 * dp.x - n2 * dc.x) * n3, (n1 * dp.y - n2 * dc.y) * n3 };
-// }
 
 	private function _intersection(out:Array<Float>, x1:Float, y1:Float, x2:Float, y2:Float, sx:Float, sy:Float, ex:Float, ey:Float):Void
 	{
