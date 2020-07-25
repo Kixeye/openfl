@@ -141,38 +141,10 @@ class KxMaskStack
 	public function push(obj:DisplayObject):Void
 	{
 		var o = null;
-
-		if (obj.__graphics != null && obj.__graphics.__bitmap != null)
+		var texture = getTexture(obj);
+		if (texture != null)
 		{
 			o = obj;
-		}
-		else if (obj.__type == BITMAP)
-		{
-			var bmp:Bitmap = cast obj;
-			if (bmp.bitmapData != null)
-			{
-				o = obj;
-			}
-		}
-		else if (obj.__type == DISPLAY_OBJECT_CONTAINER)
-		{
-			var container:DisplayObjectContainer = cast obj;
-			if (container.__children.length == 1)
-			{
-				var child = container.__children[0];
-				if (child.__graphics != null || child.__graphics.__bitmap != null)
-				{
-					o = obj;
-				}
-				else if (child.__type == BITMAP)
-				{
-					var bmp:Bitmap = cast obj;
-					if (bmp.bitmapData != null)
-					{
-						o = obj;
-					}
-				}
-			}
 		}
 		_stack.push(o);
 		update();
@@ -200,9 +172,14 @@ class KxMaskStack
 				return getTexture(child);
 			}
 		}
-		var texture = obj.__graphics.__bitmap.getTexture(_renderer);
-		texture.pixelScale = _renderer._pixelRatio;
-		return texture;
+
+		if (obj.__graphics != null && obj.__graphics.__bitmap != null)
+		{
+			var texture = obj.__graphics.__bitmap.getTexture(_renderer);
+			texture.pixelScale = _renderer._pixelRatio;
+			return texture;
+		}
+		return null;
 	}
 
 	private function getTransform(obj:DisplayObject):Matrix
