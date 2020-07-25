@@ -85,7 +85,7 @@ class KxMaskStack
 			muvRef = _clipPoly.muvout;
 
 			var numTriangles = numVertices - 2;
-			numIndices = numTriangles * 6;
+			numIndices = numTriangles * 3;
 			var i = 0;
 			for (t in 0...numTriangles)
 			{
