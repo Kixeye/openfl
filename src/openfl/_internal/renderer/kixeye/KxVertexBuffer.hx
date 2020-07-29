@@ -8,7 +8,7 @@ import openfl._internal.backend.utils.UInt16Array;
 
 class KxVertexBuffer implements KxGLResource
 {
-	private static inline var NUM_BUFFERS:Int = 2; // double buffering
+	private static inline var NUM_BUFFERS:Int = 1; // double buffering
 
 	private var _gl:WebGLRenderingContext;
 	private var _bufferIndex:Int = 0;
