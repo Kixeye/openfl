@@ -201,7 +201,7 @@ class KxClipPoly
 
 	private function _inside(x:Float, y:Float, x1:Float, y1:Float, x2:Float, y2:Float):Bool
 	{
-		return (x2 - x1) * (y - y1) >= (y2 - y1) * (x - x1);
+		return (x2 - x1) * (y - y1) > (y2 - y1) * (x - x1);
 	}
 
 	private function _intersection(out:Array<Float>, x1:Float, y1:Float, x2:Float, y2:Float, sx:Float, sy:Float, ex:Float, ey:Float):Void
