@@ -218,7 +218,7 @@ class KxRenderer extends DisplayObjectRenderer
 				for (i in 0...cmd.textures.length)
 				{
 					var texture = cmd.textures[i];
-					texture.bind(i, true);
+					texture.bind(i, false);
 				}
 				_masks.bind(cmd.mask);
 				_vertices.draw(cmd.offset, cmd.count);

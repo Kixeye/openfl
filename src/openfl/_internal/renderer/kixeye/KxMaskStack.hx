@@ -129,7 +129,7 @@ class KxMaskStack
 		else
 		{
 			var texture = getTexture(obj);
-			texture.bind(_renderer._maskUnit, true);
+			texture.bind(_renderer._maskUnit, false);
 		}
 	}
 
