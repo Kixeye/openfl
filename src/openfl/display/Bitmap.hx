@@ -199,6 +199,11 @@ class Bitmap extends DisplayObject
 
 	@:noCompletion private function set_bitmapData(value:BitmapData):BitmapData
 	{
+		if (__bitmapData != null && value == null)
+		{
+			__bitmapData.dispose();
+		}
+
 		__bitmapData = value;
 		smoothing = false;
 

@@ -199,6 +199,10 @@ class Tileset
 
 	@:noCompletion private function set_bitmapData(value:BitmapData):BitmapData
 	{
+		if (__bitmapData != null && value == null)
+		{
+			__bitmapData.dispose();
+		}
 		__bitmapData = value;
 
 		for (data in __data)
