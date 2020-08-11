@@ -16,14 +16,12 @@ class KxTexture implements KxGLResource
 	private var _texture:Texture = null;
 	private var _width:Int = 0;
 	private var _height:Int = 0;
-	private var _bytes:Int = 0;
 
 	public var pixelScale:Float = 1.0;
 
 	public var valid:Bool = false;
 
 	public static var maxTextureSize:Int = 0;
-	public static var textureMemory:Int = 0;
 
 	#if debug
 	private var _src:Dynamic = null;
@@ -121,14 +119,6 @@ class KxTexture implements KxGLResource
 
 		version = image.version;
 		valid = true;
-
-		var bytes = image.buffer.width * image.buffer.height * (format == gl.RGBA ? 4 : 1);
-		if (bytes != _bytes)
-		{
-			textureMemory -= _bytes;
-			_bytes = bytes;
-			textureMemory += _bytes;
-		}
 	}
 
 	public function uploadDefault():Void
@@ -172,13 +162,6 @@ class KxTexture implements KxGLResource
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
-		var bytes = width * height * 4;
-		if (bytes != _bytes)
-		{
-			textureMemory -= _bytes;
-			_bytes = bytes;
-			textureMemory += _bytes;
-		}
 		valid = true;
 	}
 
@@ -190,7 +173,6 @@ class KxTexture implements KxGLResource
 			_texture = null;
 			valid = false;
 			version = -1;
-			textureMemory -= _bytes;
 		}
 	}
 }
