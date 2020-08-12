@@ -1440,6 +1440,11 @@ class CanvasGraphics
 				}
 
 				data.destroy();
+				if (graphics.__bitmap != null)
+				{
+					graphics.__bitmap.dispose();
+					graphics.__bitmap = null;
+				}
 				graphics.__bitmap = BitmapData.fromCanvas(graphics.__canvas);
 			}
 
