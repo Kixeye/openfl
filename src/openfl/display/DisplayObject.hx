@@ -6,9 +6,6 @@ import openfl._internal.backend.html5.CanvasElement;
 import openfl._internal.backend.html5.CanvasRenderingContext2D;
 import openfl._internal.backend.html5.CSSStyleDeclaration;
 import openfl._internal.renderer.DisplayObjectType;
-#if kixeye
-import openfl._internal.renderer.kixeye.KxRenderTarget;
-#end
 import openfl._internal.utils.ObjectPool;
 import openfl._internal.Lib;
 import openfl.errors.TypeError;
