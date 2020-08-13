@@ -12,7 +12,6 @@ class KxTexture implements KxGLResource
 {
 	public var renderer:KxRenderer;
 	public var gl:WebGLRenderingContext;
-	public var version:Int = -1;
 	private var _texture:Texture = null;
 	private var _width:Int = 0;
 	private var _height:Int = 0;
@@ -117,7 +116,6 @@ class KxTexture implements KxGLResource
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
-		version = image.version;
 		valid = true;
 	}
 
@@ -172,7 +170,6 @@ class KxTexture implements KxGLResource
 			gl.deleteTexture(_texture);
 			_texture = null;
 			valid = false;
-			version = -1;
 		}
 	}
 }

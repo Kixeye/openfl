@@ -207,7 +207,6 @@ class BitmapData implements IBitmapDrawable
 
 	#if kixeye
 	static private var __renderer:KxRenderer = null;
-	private var __renderTarget:KxRenderTarget = null;
 	private var __texture:KxTexture = null;
 	private var __textureVersion:Int = -1;
 	#else
@@ -401,7 +400,6 @@ class BitmapData implements IBitmapDrawable
 
 			#if kixeye
 			bitmapData.__texture = __texture;
-			bitmapData.__renderTarget = __renderTarget;
 			#end
 		}
 		else
@@ -774,12 +772,6 @@ class BitmapData implements IBitmapDrawable
 			__texture.dispose();
 			__texture = null;
 			__textureVersion = -1;
-		}
-
-		if (__renderTarget != null)
-		{
-			__renderTarget.dispose();
-			__renderTarget = null;
 		}
 		#end
 	}
@@ -1545,7 +1537,7 @@ class BitmapData implements IBitmapDrawable
 			{
 				__texture.upload(image);
 			}
-			__textureVersion = __texture.version;
+			__textureVersion = image.version;
 		}
 
 		if (!readable && image != null)
