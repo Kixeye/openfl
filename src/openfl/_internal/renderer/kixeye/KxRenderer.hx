@@ -304,38 +304,31 @@ class KxRenderer extends DisplayObjectRenderer
 
 		_drawCacheBitmap(object);
 
-		if (object.__renderTarget != null)
+		if (object.__graphics != null && object.__graphics.__visible && object.__graphics.__bitmap != null)
 		{
-			_pushQuad(object, object.__renderTarget.getTexture(), object.__renderTargetMatrix);
+			var texture = object.__graphics.__bitmap.getTexture(this);
+			texture.pixelScale = _pixelRatio;
+			_pushQuad(object, texture, object.__graphics.__worldTransform);
 		}
-		else
+		if (object.__type == BITMAP)
 		{
-			if (object.__graphics != null && object.__graphics.__visible && object.__graphics.__bitmap != null)
+			var bmp:Bitmap = cast object;
+			if (bmp.__bitmapData != null)
 			{
-				var texture = object.__graphics.__bitmap.getTexture(this);
-				texture.pixelScale = _pixelRatio;
-				_pushQuad(object, texture, object.__graphics.__worldTransform);
+				_pushQuad(bmp, bmp.__bitmapData.getTexture(this), bmp.__renderTransform);
 			}
-			if (object.__type == BITMAP)
+		}
+		else if (object.__type == TILEMAP)
+		{
+			_tilemapRenderer.render(cast object);
+		}
+		else if (object.__type == VIDEO)
+		{
+			var video:Video = cast object;
+			var texture = video.__getTexture(this);
+			if (texture != null)
 			{
-				var bmp:Bitmap = cast object;
-				if (bmp.__bitmapData != null)
-				{
-					_pushQuad(bmp, bmp.__bitmapData.getTexture(this), bmp.__renderTransform);
-				}
-			}
-			else if (object.__type == TILEMAP)
-			{
-				_tilemapRenderer.render(cast object);
-			}
-			else if (object.__type == VIDEO)
-			{
-				var video:Video = cast object;
-				var texture = video.__getTexture(this);
-				if (texture != null)
-				{
-					_pushQuad(video, texture, video.__renderTransform);
-				}
+				_pushQuad(video, texture, video.__renderTransform);
 			}
 		}
 	}

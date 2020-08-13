@@ -888,11 +888,6 @@ class DisplayObject extends EventDispatcher implements IBitmapDrawable #if (open
 	@:noCompletion private var __cacheAsBitmap:Bool;
 	@:noCompletion private var __cacheAsBitmapMatrix:Matrix;
 
-	#if kixeye
-	@:noCompletion private var __renderTarget:KxRenderTarget = null;
-	@:noCompletion private var __renderTargetMatrix:Matrix = null;
-	#end
-
 	@:noCompletion private var __cacheBitmap:Bitmap = null;
 
 	@SuppressWarnings("checkstyle:Dynamic") @:noCompletion private var __cairo:#if lime Cairo #else Dynamic #end;
@@ -1366,14 +1361,6 @@ class DisplayObject extends EventDispatcher implements IBitmapDrawable #if (open
 		{
 			__graphics.__cleanup();
 		}
-
-		#if kixeye
-		if (__renderTarget != null)
-		{
-			__renderTarget.dispose();
-			__renderTarget = null;
-		}
-		#end
 	}
 
 	@:noCompletion private function __dispatch(event:Event):Bool

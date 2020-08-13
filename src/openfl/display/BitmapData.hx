@@ -50,7 +50,6 @@ import openfl._internal.renderer.cairo.CairoRenderer;
 #if kixeye
 import openfl._internal.backend.gl.WebGLRenderingContext;
 import openfl._internal.renderer.kixeye.KxRenderer;
-import openfl._internal.renderer.kixeye.KxRenderTarget;
 import openfl._internal.renderer.kixeye.KxTexture;
 #end
 
