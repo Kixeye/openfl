@@ -183,6 +183,7 @@ import openfl._internal.renderer.context3D.stats.Context3DStats;
 @:access(openfl._internal.renderer)
 @:access(openfl.display3D.Context3D)
 @:access(openfl.display.BitmapData)
+@:access(openfl.display.DisplayObject)
 @:access(openfl.display.DisplayObjectRenderer)
 @:access(openfl.display.LoaderInfo)
 @:access(openfl.display.Sprite)
@@ -1919,7 +1920,9 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 		Telemetry.__startTiming(TelemetryCommandName.RENDER);
 		#end
 
+		DisplayObject.__nodesVisited = 0;
 		__update(false, true);
+		// trace("nodes visited: " + DisplayObject.__nodesVisited);
 
 		#if lime
 		if (__renderer != null)

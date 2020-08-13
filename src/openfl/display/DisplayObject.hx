@@ -182,6 +182,7 @@ class DisplayObject extends EventDispatcher implements IBitmapDrawable #if (open
 	@:noCompletion private static var __broadcastEvents:Map<String, Array<DisplayObject>> = new Map();
 	@:noCompletion private static var __initStage:Stage;
 	@:noCompletion private static var __instanceCount:Int = 0;
+	@:noCompletion private static var __nodesVisited:Int = 0;
 
 	@:noCompletion private static var __tempStack:ObjectPool<Vector<DisplayObject>> = new ObjectPool<Vector<DisplayObject>>(function() return
 		new Vector<DisplayObject>(), function(stack) stack.length = 0);
@@ -1687,6 +1688,8 @@ class DisplayObject extends EventDispatcher implements IBitmapDrawable #if (open
 
 	@:noCompletion private function __update(transformOnly:Bool, updateChildren:Bool):Void
 	{
+		++__nodesVisited;
+
 		var renderParent = __renderParent != null ? __renderParent : parent;
 		if (__isMask && renderParent == null) renderParent = __maskTarget;
 		__renderable = (__visible && __scaleX != 0 && __scaleY != 0 && !__isMask && (renderParent == null || !renderParent.__isMask));
