@@ -48,10 +48,11 @@ class KxClipRectStack
 		{
 			_stack.push(new KxRect());
 		}
-		var rect:KxRect = _stack[_size++];
+		var rect:KxRect = _stack[_size];
 		rect.transform(r, t);
 		rect.scale(_renderer._pixelRatio);
 		rect.clip(top());
+		++_size;
 	}
 
 	public function pop():Void

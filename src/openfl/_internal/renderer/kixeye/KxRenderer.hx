@@ -258,6 +258,16 @@ class KxRenderer extends DisplayObjectRenderer
 			return;
 		}
 
+		if (object.__type == SIMPLE_BUTTON)
+		{
+			var button:SimpleButton = cast object;
+			if (button.__currentState != null)
+			{
+				_renderRecursive(button.__currentState);
+				return;
+			}
+		}
+
 		if (object.__mask != null)
 		{
 			_drawMaskGraphics(object.__mask);
@@ -270,10 +280,9 @@ class KxRenderer extends DisplayObjectRenderer
 
 		_renderObject(object);
 
-		if (object.__type == DISPLAY_OBJECT_CONTAINER)
+		if (object.__children != null)
 		{
-			var container:DisplayObjectContainer = cast object;
-			for (child in container.__children)
+			for (child in object.__children)
 			{
 				_renderRecursive(child);
 			}
@@ -292,15 +301,6 @@ class KxRenderer extends DisplayObjectRenderer
 	private function _renderObject(object:DisplayObject):Void
 	{
 		++_nodesVisited;
-
-		if (object.__type == SIMPLE_BUTTON)
-		{
-			var button:SimpleButton = cast object;
-			if (button.__currentState != null)
-			{
-				_renderObject(button.__currentState);
-			}
-		}
 
 		_drawCacheBitmap(object);
 

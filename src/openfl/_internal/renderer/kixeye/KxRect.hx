@@ -83,6 +83,10 @@ class KxRect
 
 	public function clip(r:KxRect):Void
 	{
+		var right = x + w;
+		var bottom = y + h;
+		var clipRight = r.x + r.w;
+		var clipBottom = r.y + r.h;
 		if (x < r.x)
 		{
 			w -= r.x - x;
@@ -93,13 +97,13 @@ class KxRect
 			h -= r.y - y;
 			y = r.y;
 		}
-		if (x + w > r.x + r.w)
+		if (right > clipRight)
 		{
-			w -= (x + w) - (r.x + r.w);
+			w -= right - clipRight;
 		}
-		if (y + h > r.y + r.h)
+		if (bottom > clipBottom)
 		{
-			h -= (y + h) - (r.y + r.h);
+			h -= bottom - clipBottom;
 		}
 		if (w < 0)
 		{
