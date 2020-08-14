@@ -18,6 +18,8 @@ class KxClipPoly
 	private var _points:Array<Float>;
 	private var _tmp:Array<Float> = [0, 0];
 
+	private var _axisAligned:Bool = false;
+
 	public function new()
 	{
 		_points = [for (i in 0...8) 0.0];
@@ -41,6 +43,8 @@ class KxClipPoly
 		_points[5] = transform.__transformY(right, bottom) * scale;
 		_points[6] = transform.__transformX(rect.x, bottom) * scale;
 		_points[7] = transform.__transformY(rect.x, bottom) * scale;
+
+		_axisAligned = _points[0] == _points[6] && _points[1] == _points[3];
 	}
 
 	public function intersects(pos:Array<Float>):Bool
@@ -81,6 +85,11 @@ class KxClipPoly
 		{
 			output[i] = pos[i];
 			uvout[i] = uv[i];
+		}
+
+		if (_axisAligned && output[0] == output[6] && output[1] == output[3])
+		{
+			return _boxClip();
 		}
 
 		for (i in 0...4)
@@ -163,6 +172,63 @@ class KxClipPoly
 		// trace("mask: " + _points);
 		// trace("input: " + pos);
 		// trace("output: [ " + s + "]");
+
+		return numVerts;
+	}
+
+	private function _boxClip():Int
+	{
+		if (output[0] > _points[2] || output[1] > _points[7] || output[2] < _points[0] || output[7] < _points[1])
+		{
+			numVerts = 0;
+		}
+		else
+		{
+			var w = output[2] - output[0];
+			var h = output[5] - output[3];
+
+			var uvw = uvout[2] - uvout[0];
+			var uvh = uvout[5] - uvout[3];
+
+			if (output[0] < _points[0])
+			{
+				var dx = _points[0] - output[0];
+				output[0] = _points[0];
+				output[6] = output[0];
+				uvout[0] += (dx / w) * uvw;
+				uvout[6] = uvout[0];
+			}
+
+			if (output[1] < _points[1])
+			{
+				var dy = _points[1] - output[1];
+				output[1] = _points[1];
+				output[3] = output[1];
+				uvout[1] += (dy / h) * uvh;
+				uvout[3] = uvout[1];
+			}
+
+			if (output[2] > _points[2])
+			{
+				var dx = output[2] - _points[2];
+				output[2] = _points[2];
+				output[4] = output[2];
+				uvout[2] -= (dx / w) * uvw;
+				uvout[4] = uvout[2];
+			}
+
+			if (output[5] > _points[5])
+			{
+				var dy = output[5] - _points[5];
+				output[5] = _points[5];
+				output[7] = output[5];
+				uvout[5] -= (dy / h) * uvh;
+				uvout[7] = uvout[5];
+			}
+
+			_project();
+		}
+
 
 		return numVerts;
 	}
