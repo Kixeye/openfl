@@ -12,6 +12,7 @@ import openfl._internal.renderer.canvas.CanvasRenderer;
 import openfl._internal.renderer.canvas.CanvasTextField;
 import openfl._internal.renderer.canvas.CanvasGraphics;
 import openfl._internal.renderer.canvas.CanvasShape;
+import openfl._internal.backend.math.Matrix4;
 import openfl.display.BlendMode;
 import openfl.display.Bitmap;
 import openfl.display.BitmapData;
@@ -23,6 +24,7 @@ import openfl.display.Graphics;
 import openfl.display.SimpleButton;
 import openfl.display.Stage;
 import openfl.display.Tilemap;
+import openfl.display.Geometry;
 import openfl.text.TextField;
 import openfl.geom.ColorTransform;
 import openfl.geom.Matrix;
@@ -31,6 +33,7 @@ import openfl.media.Video;
 
 @:access(openfl.geom.Matrix)
 @:access(openfl.geom.Rectangle)
+@:access(openfl.geom.ColorTransform)
 @:access(openfl.display.Bitmap)
 @:access(openfl.display.BitmapData)
 @:access(openfl.display.DisplayObject)
@@ -41,6 +44,7 @@ import openfl.media.Video;
 @:access(openfl.text.TextField)
 @:access(openfl._internal.renderer.canvas.CanvasRenderer)
 @:access(openfl._internal.renderer.kixeye.KxTexture)
+@:access(openfl._internal.renderer.kixeye.KxVertexBuffer)
 class KxRenderer extends DisplayObjectRenderer
 {
 	private static inline var MAX_VERTICES:Int = 16384;
@@ -56,15 +60,25 @@ class KxRenderer extends DisplayObjectRenderer
 
 	private var _width:Float;
 	private var _height:Float;
-	private var _viewMatrix:Matrix = new Matrix();
+	private var _viewMatrix = new Matrix();
+	private var _geomMatrix = new Matrix();
 
 	private var _shader:KxShader;
+	private var _geomShader:KxShader;
 	private var _viewUniform:UniformLocation;
 	private var _maxTextureUnits:Int;
 	private var _maskUnit:Int;
 	private var _defaultTexture:KxTexture;
 	private var _vertices:KxVertexBuffer;
 	private var _vertexStride:Int = 0;
+	private var _geomModelUniform:UniformLocation;
+	private var _geomViewUniform:UniformLocation;
+	private var _geomColorMultUniform:UniformLocation;
+	private var _geomColorOffsetUniform:UniformLocation;
+	private var _geomAttributes:Array<KxVertexAttribute> = [
+		new KxVertexAttribute("a_pos", 2, false),
+		new KxVertexAttribute("a_color", 4, false)
+	];
 
 	private var _pos:Array<Float> = [0, 0, 0, 0, 0, 0, 0, 0];
 	private var _uvs:Array<Float> = [0, 0, 0, 0, 0, 0, 0, 0];
@@ -127,11 +141,11 @@ class KxRenderer extends DisplayObjectRenderer
 		_vertices.attribute("a_colorMult", 4, false);
 		_vertices.attribute("a_colorOffset", 4, false);
 		_vertices.attribute("a_textureId", 1, false);
-		_vertexStride = _vertices.commit(MAX_VERTICES, MAX_INDICES);
+		_vertexStride = _vertices.commit(MAX_VERTICES, MAX_INDICES, true);
 
 		_shader = new KxShader(gl);
 		_shader.compile(QuadShader.VERTEX, QuadShader.FRAGMENT);
-		_shader.bindAttributes(_vertices);
+		_shader.bindAttributes(_vertices._attributes);
 		_shader.use();
 		for (i in 0..._maxTextureUnits)
 		{
@@ -142,6 +156,15 @@ class KxRenderer extends DisplayObjectRenderer
 		gl.uniform1i(_shader.getUniform("u_mask"), _maskUnit);
 		_defaultTexture.bind(_maskUnit, false);
 		_viewUniform = _shader.getUniform("u_view");
+
+		_geomShader = new KxShader(gl);
+		_geomShader.compile(GeomShader.VERTEX, GeomShader.FRAGMENT);
+		_geomShader.bindAttributes(_geomAttributes);
+		_geomShader.use();
+		_geomModelUniform = _geomShader.getUniform("u_model");
+		_geomViewUniform = _geomShader.getUniform("u_view");
+		_geomColorMultUniform = _geomShader.getUniform("u_colorMult");
+		_geomColorOffsetUniform = _geomShader.getUniform("u_colorOffset");
 
 		_clipRects = new KxClipRectStack(this);
 		_masks = new KxMaskStack(this);
@@ -160,6 +183,8 @@ class KxRenderer extends DisplayObjectRenderer
 		_softwareRenderer = null;
 		_clipRects = null;
 		_viewUniform = null;
+		_geomModelUniform = null;
+		_geomViewUniform = null;
 		_defaultTexture.dispose();
 		_defaultTexture = null;
 		gl = null;
@@ -212,16 +237,23 @@ class KxRenderer extends DisplayObjectRenderer
 		var quads = 0;
 		for (cmd in _commands)
 		{
-			if (cmd.count > 0 && _clipRects.scissor(cmd.rect))
+			if ((cmd.count > 0 || cmd.geom != null) && _clipRects.scissor(cmd.rect))
 			{
 				_setBlendMode(cmd.blendMode);
-				for (i in 0...cmd.textures.length)
+				if (cmd.geom != null)
 				{
-					var texture = cmd.textures[i];
-					texture.bind(i, false);
+					_drawGeom(cmd.geom);
 				}
-				_masks.bind(cmd.mask);
-				_vertices.draw(cmd.offset, cmd.count);
+				else
+				{
+					for (i in 0...cmd.textures.length)
+					{
+						var texture = cmd.textures[i];
+						texture.bind(i, false);
+					}
+					_masks.bind(cmd.mask);
+					_vertices.draw(cmd.offset, cmd.count);
+				}
 				++drawCalls;
 			}
 		}
@@ -330,6 +362,10 @@ class KxRenderer extends DisplayObjectRenderer
 			{
 				_pushQuad(video, texture, video.__renderTransform);
 			}
+		}
+		else if (object.__type == GEOMETRY)
+		{
+			_pushGeom(cast object);
 		}
 	}
 
@@ -570,7 +606,7 @@ class KxRenderer extends DisplayObjectRenderer
 		var unit:Int = -1;
 		var cmd:Command = null;
 		var tail:Command = _commands.length > 0 ? _commands[_commands.length - 1] : null;
-		var newCommand:Bool = (tail == null || tail.blendMode != blendMode || tail.mask != _masks.top() || !tail.rect.equals(_clipRects.top()));
+		var newCommand:Bool = (tail == null || tail.geom != null || tail.blendMode != blendMode || tail.mask != _masks.top() || !tail.rect.equals(_clipRects.top()));
 
 		if (!newCommand)
 		{
@@ -608,6 +644,63 @@ class KxRenderer extends DisplayObjectRenderer
 			cmd.count += _masks.numIndices;
 		}
 	}
+
+	private function _pushGeom(geom:Geometry):Void
+	{
+		if (geom.__numVertices > 0)
+		{
+			var alpha = geom.__worldAlpha;
+			var blendMode = geom.__worldBlendMode;
+
+			_commands.push(new Command(null, _clipRects.cacheTop(), geom.__worldBlendMode, null, 0, geom));
+		}
+	}
+
+	private function _setGeomMatrix(transform:Matrix):Void
+	{
+		_geomMatrix.copyFrom(transform);
+		_geomMatrix.scale(_pixelRatio, _pixelRatio);
+	}
+
+	private function _drawGeom(geom:Geometry):Void
+	{
+		if (geom.__numVertices == 0)
+		{
+			return;
+		}
+
+		if (geom.__vertexBuffer == null)
+		{
+			geom.__vertexBuffer = new KxVertexBuffer(gl);
+			var stride = geom.__vertexBuffer.setAttributes(_geomAttributes);
+			geom.__vertexBuffer.push(geom.__vertices, stride * geom.__numVertices, null, 0);
+			geom.__vertexBuffer.commit(geom.__numVertices, 0, false);
+		}
+
+		_setGeomMatrix(geom.__renderTransform);
+
+		_geomShader.use();
+		_geomShader.updateUniformMat3(_geomModelUniform, _geomMatrix.toArray());
+		_geomShader.updateUniformMat3(_geomViewUniform, _viewMatrix.toArray());
+		var alpha = geom.__worldAlpha;
+		var ct = geom.__worldColorTransform;
+		if (ct != null && !ct.__isDefault(true))
+		{
+			_geomShader.updateUniform4(_geomColorMultUniform, ct.redMultiplier, ct.greenMultiplier, ct.blueMultiplier, ct.alphaMultiplier * alpha);
+			_geomShader.updateUniform4(_geomColorOffsetUniform, ct.redOffset, ct.greenOffset, ct.blueOffset, ct.alphaOffset * alpha);
+		}
+		else
+		{
+			_geomShader.updateUniform4(_geomColorMultUniform, 1, 1, 1, alpha);
+			_geomShader.updateUniform4(_geomColorOffsetUniform, 0, 0, 0, 0);
+		}
+		geom.__vertexBuffer.enable();
+		geom.__vertexBuffer.draw(0, geom.__numVertices);
+
+		_shader.use();
+		_shader.updateUniformMat3(_viewUniform, _viewMatrix.toArray());
+		_vertices.enable();
+	}
 }
 
 private class Command
@@ -619,7 +712,9 @@ private class Command
 	public var offset:Int;
 	public var count:Int;
 
-	public function new(mask:DisplayObject, rect:KxRect, blendMode:BlendMode, texture:KxTexture, offset:Int)
+	public var geom:Geometry;
+
+	public function new(mask:DisplayObject, rect:KxRect, blendMode:BlendMode, texture:KxTexture, offset:Int, geom:Geometry = null)
 	{
 		this.mask = mask;
 		this.rect = rect;
@@ -627,7 +722,47 @@ private class Command
 		this.textures = [ texture ];
 		this.offset = offset;
 		this.count = 0;
+		this.geom = geom;
 	}
+}
+
+private class GeomShader
+{
+	public static inline var VERTEX:String = '
+		precision mediump float;
+
+		uniform mat3 u_model;
+		uniform mat3 u_view;
+
+		attribute vec2 a_pos;
+		attribute vec4 a_color;
+
+		varying vec4 v_color;
+
+		void main(void)
+		{
+			v_color = a_color;
+			vec3 p = vec3(a_pos, 1) * u_model * u_view;
+			gl_Position = vec4(p, 1);
+		}
+	';
+
+	public static inline var FRAGMENT:String = '
+		precision mediump float;
+
+		uniform vec4 u_colorMult;
+		uniform vec4 u_colorOffset;
+
+		varying vec4 v_color;
+
+		void main(void)
+		{
+			vec4 color = v_color;
+			color.rgb /= color.a;
+			color = clamp((color * u_colorMult) + u_colorOffset, 0.0, 1.0);
+			gl_FragColor = vec4(color.rgb * color.a, color.a);
+		}
+	';
 }
 
 private class QuadShader

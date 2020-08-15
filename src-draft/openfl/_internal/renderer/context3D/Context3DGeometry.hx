@@ -27,6 +27,8 @@ class Context3DGeometry
 	{
 		if (!geometry.__visible || geometry.__worldAlpha <= 0) return;
 
+		#if !kixeye
+
 		var context = renderer.context3D;
 
 		if (geometry.__vertexBuffer == null && geometry.__vertices.length > 0)
@@ -90,5 +92,6 @@ class Context3DGeometry
 			Context3DStats.incrementDrawCall(DrawCallContext.BATCHER);
 			#end
 		}
+		#end
 	}
 }

@@ -25,8 +25,8 @@ class GeometryTest extends FunctionalTest
 		geom.pushVertex(0, 0, 0xFF0000, 0.5);
 		geom.pushVertex(100, 0, 0x00FF00, 1.0);
 		geom.pushVertex(100, 100, 0x0000FF, 0.8);
-		geom.x = 10;
-		geom.y = 10;
+		geom.x = 50;
+		geom.y = 50;
 
 		content.addChild(geom);
 	}

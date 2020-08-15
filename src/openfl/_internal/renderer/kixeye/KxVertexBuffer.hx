@@ -8,7 +8,7 @@ import openfl._internal.backend.utils.UInt16Array;
 
 class KxVertexBuffer implements KxGLResource
 {
-	private static inline var NUM_BUFFERS:Int = 1; // double buffering
+	private static inline var NUM_BUFFERS:Int = 1; // change this to 2 for double buffering
 
 	private var _gl:WebGLRenderingContext;
 	private var _bufferIndex:Int = 0;
@@ -17,7 +17,7 @@ class KxVertexBuffer implements KxGLResource
 	private var _vertices:Float32Array = null;
 	private var _indices:UInt16Array = null;
 
-	private var _attributes:Array<Attribute> = [];
+	private var _attributes:Array<KxVertexAttribute> = [];
 	private var _stride:Int = 0;
 
 	private var _numFloats:Int = 0;
@@ -56,31 +56,53 @@ class KxVertexBuffer implements KxGLResource
 
 	public function attribute(name:String, size:Int, norm:Bool):Void
 	{
-		_attributes.push(new Attribute(name, size, norm));
+		_attributes.push(new KxVertexAttribute(name, size, norm));
 		_stride += size;
 	}
 
-	public function commit(maxVertices:Int, maxIndices:Int):Int
+	public function setAttributes(attributes:Array<KxVertexAttribute>):Int
 	{
-		_vertices = new Float32Array(maxVertices * _stride);
+		_attributes = attributes;
+		_stride = 0;
+		for (attr in _attributes)
+		{
+			_stride += attr.size;
+		}
+		return _stride;
+	}
+
+	public function commit(maxVertices:Int, maxIndices:Int, dynamicDraw:Bool):Int
+	{
+		if (_vertices == null)
+		{
+			_vertices = new Float32Array(maxVertices * _stride);
+		}
 		for (i in 0...NUM_BUFFERS)
 		{
 			var vertexBuffer = _gl.createBuffer();
 			_gl.bindBuffer(_gl.ARRAY_BUFFER, vertexBuffer);
-			_gl.bufferData(_gl.ARRAY_BUFFER, _vertices, _gl.DYNAMIC_DRAW);
+			_gl.bufferData(_gl.ARRAY_BUFFER, _vertices, dynamicDraw ? _gl.DYNAMIC_DRAW : _gl.STATIC_DRAW);
 			_vertexBuffers.push(vertexBuffer);
 
 		}
 		if (maxIndices > 0)
 		{
-			_indices = new UInt16Array(maxIndices);
+			if (_indices == null)
+			{
+				_indices = new UInt16Array(maxIndices);
+			}
 			for (i in 0...NUM_BUFFERS)
 			{
 				var indexBuffer = _gl.createBuffer();
 				_gl.bindBuffer(_gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-				_gl.bufferData(_gl.ELEMENT_ARRAY_BUFFER, _indices, _gl.DYNAMIC_DRAW);
+				_gl.bufferData(_gl.ELEMENT_ARRAY_BUFFER, _indices, dynamicDraw ? _gl.DYNAMIC_DRAW : _gl.STATIC_DRAW);
 				_indexBuffers.push(indexBuffer);
 			}
+		}
+		if (!dynamicDraw)
+		{
+			_vertices = null;
+			_indices = null;
 		}
 		return _stride;
 	}
@@ -96,13 +118,18 @@ class KxVertexBuffer implements KxGLResource
 	{
 		var offset = getNumVertices();
 
-		for (i in 0...numFloats)
+		if (vertices != null)
 		{
-			_vertices[_numFloats++] = vertices[i];
+			if (_vertices == null) _vertices = new Float32Array(numFloats);
+			for (i in 0...numFloats)
+			{
+				_vertices[_numFloats++] = vertices[i];
+			}
 		}
 
 		if (indices != null)
 		{
+			if (_indices == null) _indices = new UInt16Array(numIndices);
 			for (i in 0...numIndices)
 			{
 				_indices[_numIndices++] = offset + indices[i];
@@ -155,16 +182,3 @@ class KxVertexBuffer implements KxGLResource
 	}
 }
 
-private class Attribute
-{
-	public var name:String;
-	public var size:Int;
-	public var norm:Bool;
-
-	public function new(name:String, size:Int, norm:Bool)
-	{
-		this.name = name;
-		this.size = size;
-		this.norm = norm;
-	}
-}

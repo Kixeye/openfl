@@ -1,6 +1,10 @@
 package openfl.display;
 
+#if kixeye
+import openfl._internal.renderer.kixeye.KxVertexBuffer;
+#else
 import openfl.display3D.VertexBuffer3D;
+#end
 import openfl.geom.Matrix;
 import openfl.geom.Rectangle;
 
@@ -9,11 +13,17 @@ import openfl.geom.Rectangle;
 class Geometry extends DisplayObject
 {
 	public static inline var FLOATS_PER_VERTEX = 2 + 4;
+	#if !kixeye
 	private static var __geomShader:GeomShader = new GeomShader();
+	#end
 
 	private var __numVertices:Int = 0;
 	private var __vertices:Array<Float> = [];
+	#if kixeye
+	private var __vertexBuffer:KxVertexBuffer = null;
+	#else
 	private var __vertexBuffer:VertexBuffer3D = null;
+	#end
 
 	private var __bounds:Rectangle = new Rectangle(0, 0, 0, 0);
 
@@ -88,6 +98,7 @@ class Geometry extends DisplayObject
 	}
 }
 
+#if !kixeye
 private class GeomShader extends Shader
 {
 	@:glVertexSource("
@@ -121,3 +132,4 @@ private class GeomShader extends Shader
 		#end
 	}
 }
+#end

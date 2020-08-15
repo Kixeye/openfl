@@ -55,15 +55,20 @@ class KxShader implements KxGLResource
 		_gl.uniformMatrix3fv(loc, false, mat);
 	}
 
+	public function updateUniformMat4(loc:UniformLocation, mat:Float32Array):Void
+	{
+		_gl.uniformMatrix4fv(loc, false, mat);
+	}
+
 	public function getUniform(name:String):UniformLocation
 	{
 		return _gl.getUniformLocation(_program, name);
 	}
 
-	public function bindAttributes(vertexBuffer:KxVertexBuffer):Void
+	public function bindAttributes(attributes:Array<KxVertexAttribute>):Void
 	{
 		var index = 0;
-		for (attr in vertexBuffer._attributes)
+		for (attr in attributes)
 		{
 			_gl.bindAttribLocation(_program, index, attr.name);
 			++index;
