@@ -312,11 +312,16 @@ class KxRenderer extends DisplayObjectRenderer
 
 		_renderObject(object);
 
-		if (object.__children != null)
+		if (object.__type == DISPLAY_OBJECT_CONTAINER)
 		{
-			for (child in object.__children)
+			var container:DisplayObjectContainer = cast object;
+			container.__cleanupRemovedChildren();
+			if (container.__children != null)
 			{
-				_renderRecursive(child);
+				for (child in container.__children)
+				{
+					_renderRecursive(child);
+				}
 			}
 		}
 
