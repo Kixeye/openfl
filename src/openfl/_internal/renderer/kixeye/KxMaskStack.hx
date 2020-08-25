@@ -31,6 +31,7 @@ class KxMaskStack
 
 	private var _renderer:KxRenderer;
 	private var _whiteTexture:KxTexture;
+	private var _zeroMask:KxTexture;
 	private var _stack:Array<DisplayObject> = [];
 	private var _clipPoly = new KxClipPoly();
 	private var _maskRect = new KxRect();
@@ -40,6 +41,8 @@ class KxMaskStack
 		_renderer = renderer;
 		_whiteTexture = new KxTexture(_renderer, null);
 		_whiteTexture.uploadWhite();
+
+		_zeroMask = new KxTexture(_renderer, null);
 
 		vertices = [for (i in 0..._renderer._vertexStride * 8) 0.0];
 		_indices = [for (i in 0...18) 0];
@@ -79,6 +82,11 @@ class KxMaskStack
 		else
 		{
 			numVertices = _clipPoly.clip(pos, uv);
+
+			if (numVertices == 0)
+			{
+				return;
+			}
 
 			posRef = _clipPoly.output;
 			uvRef = _clipPoly.uvout;
@@ -173,11 +181,18 @@ class KxMaskStack
 			}
 		}
 
-		if (obj.__graphics != null && obj.__graphics.__bitmap != null)
+		if (obj.__graphics != null)
 		{
-			var texture = obj.__graphics.__bitmap.getTexture(_renderer);
-			texture.pixelScale = _renderer._pixelRatio;
-			return texture;
+			if (obj.__graphics.__bitmap != null)
+			{
+				var texture = obj.__graphics.__bitmap.getTexture(_renderer);
+				texture.pixelScale = _renderer._pixelRatio;
+				return texture;
+			}
+			else
+			{
+				return _zeroMask;
+			}
 		}
 		return null;
 	}
@@ -206,12 +221,20 @@ class KxMaskStack
 		if (obj != null)
 		{
 			var texture = getTexture(obj);
-			var transform = getTransform(obj);
-			var right:Float = texture._width;
-			var bottom:Float = texture._height;
-			var pixelRatio = _renderer._pixelRatio;
-			_maskRect.set(0, 0, texture._width, texture._height);
-			_clipPoly.setRect(_maskRect, transform, pixelRatio);
+			if (texture == _zeroMask)
+			{
+				_maskRect.set(0, 0, 0, 0);
+				_clipPoly.setRect(_maskRect, Matrix.__identity, 1.0);
+			}
+			else
+			{
+				var transform = getTransform(obj);
+				var right:Float = texture._width;
+				var bottom:Float = texture._height;
+				var pixelRatio = _renderer._pixelRatio;
+				_maskRect.set(0, 0, texture._width, texture._height);
+				_clipPoly.setRect(_maskRect, transform, pixelRatio);
+			}
 		}
 	}
 }

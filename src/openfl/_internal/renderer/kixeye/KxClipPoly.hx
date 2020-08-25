@@ -178,7 +178,7 @@ class KxClipPoly
 
 	private function _boxClip():Int
 	{
-		if (output[0] > _points[2] || output[1] > _points[7] || output[2] < _points[0] || output[7] < _points[1])
+		if (output[0] > _points[2] || output[1] > _points[7] || output[2] < _points[0] || output[7] < _points[1] || _points[0] == _points[2] || _points[3] == _points[5])
 		{
 			numVerts = 0;
 		}
