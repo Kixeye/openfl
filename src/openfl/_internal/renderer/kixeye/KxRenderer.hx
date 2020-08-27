@@ -442,8 +442,6 @@ class KxRenderer extends DisplayObjectRenderer
 				var uvCenterY = scale9Grid.height / vertexBufferHeight;
 				var uvRight = right / width;
 				var uvBottom = bottom / height;
-				var uvOffsetU = (_pixelRatio * 0.5) / vertexBufferWidth;
-				var uvOffsetV = (_pixelRatio * 0.5) / vertexBufferHeight;
 
 				var renderedLeft = left / vertexBufferScaleX;
 				var renderedTop = top / vertexBufferScaleY;
@@ -480,43 +478,43 @@ class KxRenderer extends DisplayObjectRenderer
 				var s = height;
 				var rs = s - r;
 
-				_setVs(0, (uvHeight * uvTop) - uvOffsetV);
+				_setVs(0, uvHeight * uvTop);
 				_setVertices(transform, a, p, b, q);
-				_setUs(0, (uvWidth * uvLeft) - uvOffsetU);
+				_setUs(0, uvWidth * uvLeft);
 				_push(texture, blendMode, alpha, colorTransform);
 
 				_setVertices(transform, b, p, bc, q);
-				_setUs((uvWidth * uvLeft) + uvOffsetU, (uvWidth * (uvLeft + uvCenterX)) - uvOffsetU);
+				_setUs(uvWidth * uvLeft, uvWidth * (uvLeft + uvCenterX));
 				_push(texture, blendMode, alpha, colorTransform);
 
 				_setVertices(transform, c, p, cd, q);
-				_setUs((uvWidth * (uvLeft + uvCenterX)) + uvOffsetU, uvWidth);
+				_setUs(uvWidth * (uvLeft + uvCenterX), uvWidth);
 				_push(texture, blendMode, alpha, colorTransform);
 
-				_setVs((uvHeight * uvTop) + uvOffsetV, (uvHeight * (uvTop + uvCenterY)) - uvOffsetV);
+				_setVs(uvHeight * uvTop, uvHeight * (uvTop + uvCenterY));
 				_setVertices(transform, a, q, b, qr);
-				_setUs(0, (uvWidth * uvLeft) - uvOffsetU);
+				_setUs(0, uvWidth * uvLeft);
 				_push(texture, blendMode, alpha, colorTransform);
 
 				_setVertices(transform, b, q, bc, qr);
-				_setUs((uvWidth * uvLeft) + uvOffsetU, (uvWidth * (uvLeft + uvCenterX)) - uvOffsetU);
+				_setUs(uvWidth * uvLeft, uvWidth * (uvLeft + uvCenterX));
 				_push(texture, blendMode, alpha, colorTransform);
 
 				_setVertices(transform, c, q, cd, qr);
-				_setUs((uvWidth * (uvLeft + uvCenterX)) + uvOffsetU, uvWidth);
+				_setUs(uvWidth * (uvLeft + uvCenterX), uvWidth);
 				_push(texture, blendMode, alpha, colorTransform);
 
-				_setVs((uvHeight * (uvTop + uvCenterY)) + uvOffsetV, uvHeight);
+				_setVs(uvHeight * (uvTop + uvCenterY), uvHeight);
 				_setVertices(transform, a, r, b, rs);
-				_setUs(0, (uvWidth * uvLeft) - uvOffsetU);
+				_setUs(0, uvWidth * uvLeft);
 				_push(texture, blendMode, alpha, colorTransform);
 
 				_setVertices(transform, b, r, bc, rs);
-				_setUs((uvWidth * uvLeft) + uvOffsetU, (uvWidth * (uvLeft + uvCenterX)) - uvOffsetU);
+				_setUs(uvWidth * uvLeft, uvWidth * (uvLeft + uvCenterX));
 				_push(texture, blendMode, alpha, colorTransform);
 
 				_setVertices(transform, c, r, cd, rs);
-				_setUs((uvWidth * (uvLeft + uvCenterX)) + uvOffsetU, uvWidth);
+				_setUs(uvWidth * (uvLeft + uvCenterX), uvWidth);
 				_push(texture, blendMode, alpha, colorTransform);
 			}
 			else if (centerX == 0 && centerY != 0)
