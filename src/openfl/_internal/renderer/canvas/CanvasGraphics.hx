@@ -220,6 +220,7 @@ class CanvasGraphics
 	{
 		#if openfl_html5
 		context.beginPath();
+		context.globalCompositeOperation = "lighter";
 		playCommands(fillCommands, false);
 		fillCommands.clear();
 		#end
