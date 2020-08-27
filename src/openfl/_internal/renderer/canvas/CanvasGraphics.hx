@@ -220,7 +220,6 @@ class CanvasGraphics
 	{
 		#if openfl_html5
 		context.beginPath();
-		context.globalCompositeOperation = "lighter";
 		playCommands(fillCommands, false);
 		fillCommands.clear();
 		#end
@@ -1109,6 +1108,10 @@ class CanvasGraphics
 			{
 				if (hasFill || bitmapFill != null)
 				{
+					if (bitmapFill != null && isScale9Grid(commands))
+					{
+						context.globalCompositeOperation = "lighter";
+					}
 					context.translate(-bounds.x, -bounds.y);
 
 					if (pendingMatrix != null)
@@ -1130,6 +1133,23 @@ class CanvasGraphics
 		}
 		#end
 	}
+
+	private static function isScale9Grid(commands:DrawCommandBuffer):Bool
+	{
+		// TODO fix this hack
+		#if openfl_html5
+		var types = commands.types;
+		if (types.length > 6)
+		{
+			if (types[0] == BEGIN_BITMAP_FILL && types[1] == MOVE_TO && types[2] == LINE_TO && types[3] == LINE_TO && types[4] == LINE_TO && types[5] == LINE_TO)
+			{
+				return true;
+			}
+		}
+		#end
+		return false;
+	}
+
 
 	public static function render(graphics:Graphics, renderer:CanvasRenderer):Void
 	{
