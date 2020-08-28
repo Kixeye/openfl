@@ -1659,7 +1659,11 @@ import js.html.CanvasRenderingContext2D;
 		}
 		#end
 
-		__bitmap = null;
+		if (__bitmap != null)
+		{
+			__bitmap.dispose();
+			__bitmap = null;
+		}
 
 		#if (js && html5)
 		if (__canvas != null)
