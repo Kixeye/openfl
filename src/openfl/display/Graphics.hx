@@ -1660,7 +1660,11 @@ import openfl._internal.renderer.cairo.CairoGraphics;
 		}
 		#end
 
-		__bitmap = null;
+		if (__bitmap != null)
+		{
+			__bitmap.dispose();
+			__bitmap = null;
+		}
 
 		#if openfl_html5
 		__canvas = null;
@@ -1968,7 +1972,7 @@ import openfl._internal.renderer.cairo.CairoGraphics;
 		__height = newHeight;
 	}
 
-    public static function __almostEquals(a:Float, b:Float, epsilon:Float = 0.0001):Bool
+	public static function __almostEquals(a:Float, b:Float, epsilon:Float = 0.0001):Bool
 	{
 		if (a == b)
 		{
