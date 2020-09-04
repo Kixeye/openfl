@@ -57,9 +57,9 @@ class SymbolTimeline extends Timeline
 	@:noCompletion private static function __init__()
 	{
 		__useParentFPS = true;
-		untyped __js__("/// #if (typeof ENV === 'undefined' || (!ENV['swflite-parent-fps'] && !ENV['swf-parent-fps'])) && (typeof swf_parent_fps === 'undefined' || !swf_parent_fps) && (typeof swflite_parent_fps === 'undefined' || !swflite-parent-fps) && (typeof defines === 'undefined' || (!defines['swf-parent-fps'] && !defines['swflite-parent-fps']))");
+		untyped js.Syntax.code("/// #if (typeof ENV === 'undefined' || (!ENV['swflite-parent-fps'] && !ENV['swf-parent-fps'])) && (typeof swf_parent_fps === 'undefined' || !swf_parent_fps) && (typeof swflite_parent_fps === 'undefined' || !swflite-parent-fps) && (typeof defines === 'undefined' || (!defines['swf-parent-fps'] && !defines['swflite-parent-fps']))");
 		__useParentFPS = false;
-		untyped __js__("/// #endif");
+		untyped js.Syntax.code("/// #endif");
 	}
 	#end
 
@@ -122,7 +122,7 @@ class SymbolTimeline extends Timeline
 
 					scripts.push(new FrameScript(script, frame));
 					#elseif js
-					var script = untyped __js__("eval({0})", "(function(){" + frameData.scriptSource + "})");
+					var script = untyped js.Syntax.code("eval({0})", "(function(){" + frameData.scriptSource + "})");
 					var wrapper = function(scope)
 					{
 						try
