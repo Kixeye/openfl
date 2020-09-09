@@ -559,14 +559,14 @@ class KxRenderer extends DisplayObjectRenderer
 		_transform.copyFrom(transform);
 		_transform.scale(_pixelRatio, _pixelRatio);
 
-		_pos[0] = _transform.__transformX(x, y);
-		_pos[1] = _transform.__transformY(x, y);
-		_pos[2] = _transform.__transformX(r, y);
-		_pos[3] = _transform.__transformY(r, y);
-		_pos[4] = _transform.__transformX(r, b);
-		_pos[5] = _transform.__transformY(r, b);
-		_pos[6] = _transform.__transformX(x, b);
-		_pos[7] = _transform.__transformY(x, b);
+		_pos[0] = Math.round(_transform.__transformX(x, y));
+		_pos[1] = Math.round(_transform.__transformY(x, y));
+		_pos[2] = Math.round(_transform.__transformX(r, y));
+		_pos[3] = Math.round(_transform.__transformY(r, y));
+		_pos[4] = Math.round(_transform.__transformX(r, b));
+		_pos[5] = Math.round(_transform.__transformY(r, b));
+		_pos[6] = Math.round(_transform.__transformX(x, b));
+		_pos[7] = Math.round(_transform.__transformY(x, b));
 	}
 
 	private function _useDefaultUvs():Void
