@@ -800,7 +800,7 @@ class Loader extends DisplayObjectContainer
 			// script.innerHTML = loader.data;
 			// Browser.document.head.appendChild (script);
 
-			untyped js.Syntax.code("eval")("(function () {" + loader.data + "})()");
+			untyped __js__("eval")("(function () {" + loader.data + "})()");
 			#end
 
 			contentLoaderInfo.dispatchEvent(new Event(Event.COMPLETE));

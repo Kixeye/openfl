@@ -913,37 +913,37 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 	{
 		untyped Object.defineProperties(Stage.prototype, {
 			"color": {
-				get: untyped js.Syntax.code("function () { return this.get_color (); }"),
-				set: untyped js.Syntax.code("function (v) { return this.set_color (v); }")
+				get: untyped __js__("function () { return this.get_color (); }"),
+				set: untyped __js__("function (v) { return this.set_color (v); }")
 			},
 			"contentsScaleFactor": {
-				get: untyped js.Syntax.code("function () { return this.get_contentsScaleFactor (); }")
+				get: untyped __js__("function () { return this.get_contentsScaleFactor (); }")
 			},
 			"displayState": {
-				get: untyped js.Syntax.code("function () { return this.get_displayState (); }"),
-				set: untyped js.Syntax.code("function (v) { return this.set_displayState (v); }")
+				get: untyped __js__("function () { return this.get_displayState (); }"),
+				set: untyped __js__("function (v) { return this.set_displayState (v); }")
 			},
 			"focus": {
-				get: untyped js.Syntax.code("function () { return this.get_focus (); }"),
-				set: untyped js.Syntax.code("function (v) { return this.set_focus (v); }")
+				get: untyped __js__("function () { return this.get_focus (); }"),
+				set: untyped __js__("function (v) { return this.set_focus (v); }")
 			},
 			"frameRate": {
-				get: untyped js.Syntax.code("function () { return this.get_frameRate (); }"),
-				set: untyped js.Syntax.code("function (v) { return this.set_frameRate (v); }")
+				get: untyped __js__("function () { return this.get_frameRate (); }"),
+				set: untyped __js__("function (v) { return this.set_frameRate (v); }")
 			},
 			"fullScreenHeight": {
-				get: untyped js.Syntax.code("function () { return this.get_fullScreenHeight (); }")
+				get: untyped __js__("function () { return this.get_fullScreenHeight (); }")
 			},
 			"fullScreenWidth": {
-				get: untyped js.Syntax.code("function () { return this.get_fullScreenWidth (); }")
+				get: untyped __js__("function () { return this.get_fullScreenWidth (); }")
 			},
 			"quality": {
-				get: untyped js.Syntax.code("function () { return this.get_quality (); }"),
-				set: untyped js.Syntax.code("function (v) { return this.set_quality (v); }")
+				get: untyped __js__("function () { return this.get_quality (); }"),
+				set: untyped __js__("function (v) { return this.set_quality (v); }")
 			},
 			"scaleMode": {
-				get: untyped js.Syntax.code("function () { return this.get_scaleMode (); }"),
-				set: untyped js.Syntax.code("function (v) { return this.set_scaleMode (v); }")
+				get: untyped __js__("function () { return this.get_scaleMode (); }"),
+				set: untyped __js__("function (v) { return this.set_scaleMode (v); }")
 			},
 		});
 	}
@@ -996,7 +996,7 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 		#if mac
 		__macKeyboard = true;
 		#elseif openfl_html5
-		__macKeyboard = untyped js.Syntax.code("/AppleWebKit/.test (navigator.userAgent) && /Mobile\\/\\w+/.test (navigator.userAgent) || /Mac/.test (navigator.platform)");
+		__macKeyboard = untyped __js__("/AppleWebKit/.test (navigator.userAgent) && /Mobile\\/\\w+/.test (navigator.userAgent) || /Mac/.test (navigator.platform)");
 		#end
 
 		__clearBeforeRender = true;
@@ -1444,17 +1444,17 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 
 				if (exc != null && Reflect.hasField(exc, "stack") && exc.stack != null && exc.stack != "")
 				{
-					untyped js.Syntax.code("console.log")(exc.stack);
+					untyped __js__("console.log")(exc.stack);
 					e.stack = exc.stack;
 				}
 				else
 				{
 					var msg = CallStack.toString(CallStack.callStack());
-					untyped js.Syntax.code("console.log")(msg);
+					untyped __js__("console.log")(msg);
 				}
 			}
 			catch (e2:Dynamic) {}
-			untyped js.Syntax.code("throw e");
+			untyped __js__("throw e");
 			#elseif cs
 			throw e;
 			// cs.Lib.rethrow (e);
