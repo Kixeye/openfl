@@ -882,6 +882,11 @@ class DisplayObject extends EventDispatcher implements IBitmapDrawable #if (open
 	**/
 	@:keep public var y(get, set):Float;
 
+	#if kixeye
+	@:keep public var shadowOffset(get, set):Point;
+	@:keep public var shadowColorTransform(get, set):ColorTransform;
+	#end
+
 	// @:noCompletion @:dox(hide) @:require(flash10) var z:Float;
 	@:noCompletion private var __alpha:Float;
 	@:noCompletion private var __blendMode:BlendMode;
@@ -935,6 +940,10 @@ class DisplayObject extends EventDispatcher implements IBitmapDrawable #if (open
 	@:noCompletion private var __canvas:CanvasElement;
 	@:noCompletion private var __context:CanvasRenderingContext2D;
 	@:noCompletion private var __style:CSSStyleDeclaration;
+	#end
+	#if kixeye
+	@:noCompletion private var __shadowOffset:Point;
+	@:noCompletion private var __shadowColorTransform:ColorTransform;
 	#end
 
 	#if openfljs
@@ -1025,6 +1034,16 @@ class DisplayObject extends EventDispatcher implements IBitmapDrawable #if (open
 				get: untyped __js__("function () { return this.get_y (); }"),
 				set: untyped __js__("function (v) { return this.set_y (v); }")
 			},
+			#if kixeye
+			"shadowOffset": {
+				get: untyped __js__("function () { return this.get_shadowOffset (); }"),
+				set: untyped __js__("function (v) { return this.set_shadowOffet (v); }")
+			},
+			"shadowColorTransform": {
+				get: untyped __js__("function () { return this.get_shadowColorTransform (); }"),
+				set: untyped __js__("function (v) { return this.set_shadowColorTransform (v); }")
+			},
+			#end
 		});
 	}
 	#end
@@ -1053,6 +1072,11 @@ class DisplayObject extends EventDispatcher implements IBitmapDrawable #if (open
 		__worldColorTransform = new ColorTransform();
 		__renderTransform = new Matrix();
 		__worldVisible = true;
+
+		#if kixeye
+		__shadowOffset = null;
+		__shadowColorTransform = null;
+		#end
 
 		name = "instance" + (++__instanceCount);
 
@@ -2271,6 +2295,31 @@ class DisplayObject extends EventDispatcher implements IBitmapDrawable #if (open
 		if (value != __transform.ty) __setTransformDirty();
 		return __transform.ty = value;
 	}
+
+	#if kixeye
+	@:noCompletion private function get_shadowOffset():Point
+	{
+		return __shadowOffset;
+	}
+
+	@:noCompletion private function set_shadowOffset(value:Point):Point
+	{
+		if (__shadowColorTransform == null)
+		{
+			__shadowColorTransform = new ColorTransform(0, 0, 0, 1, 0, 0, 0, 0);
+		}
+		return __shadowOffset = value;
+	}
+	@:noCompletion private function get_shadowColorTransform():ColorTransform
+	{
+		return __shadowColorTransform;
+	}
+
+	@:noCompletion private function set_shadowColorTransform(value:ColorTransform):ColorTransform
+	{
+		return __shadowColorTransform = value;
+	}
+	#end
 }
 #else
 typedef DisplayObject = flash.display.DisplayObject;

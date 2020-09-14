@@ -11,6 +11,7 @@ import openfl._internal.renderer.canvas.CanvasGraphics;
 import openfl._internal.backend.gl.WebGLRenderingContext;
 
 @:access(openfl.geom.Matrix)
+@:access(openfl.geom.ColorTransform)
 @:access(openfl.display.Bitmap)
 @:access(openfl.display.DisplayObject)
 @:access(openfl.display.DisplayObjectContainer)
@@ -35,6 +36,7 @@ class KxMaskStack
 	private var _stack:Array<DisplayObject> = [];
 	private var _clipPoly = new KxClipPoly();
 	private var _maskRect = new KxRect();
+	private var _colorTransform = new ColorTransform();
 
 	public function new(renderer:KxRenderer)
 	{
@@ -63,7 +65,7 @@ class KxMaskStack
 		return _clipPoly.intersects(pos);
 	}
 
-	public function clip(texture:KxTexture, unit:Int, ct:ColorTransform, alpha:Float, pos:Array<Float>, uv:Array<Float>):Void
+	public function clip(texture:KxTexture, unit:Int, ct:ColorTransform, colorMult:ColorTransform, alpha:Float, pos:Array<Float>, uv:Array<Float>):Void
 	{
 		var posRef:Array<Float>;
 		var uvRef:Array<Float>;
@@ -104,7 +106,13 @@ class KxMaskStack
 			indices = _indices;
 		}
 
-		var alphaOffset = ct.alphaOffset * alpha;
+		_colorTransform.__copyFrom(ct);
+		if (colorMult != null)
+		{
+			_colorTransform.concat(colorMult);
+		}
+
+		var alphaOffset = _colorTransform.alphaOffset * alpha;
 		var j = 0;
 		for (i in 0...numVertices)
 		{
@@ -116,13 +124,13 @@ class KxMaskStack
 			vertices[j++] = uvRef[k1];
 			vertices[j++] = muvRef[k0];
 			vertices[j++] = muvRef[k1];
-			vertices[j++] = ct.redMultiplier;
-			vertices[j++] = ct.greenMultiplier;
-			vertices[j++] = ct.blueMultiplier;
+			vertices[j++] = _colorTransform.redMultiplier;
+			vertices[j++] = _colorTransform.greenMultiplier;
+			vertices[j++] = _colorTransform.blueMultiplier;
 			vertices[j++] = alpha;
-			vertices[j++] = ct.redOffset;
-			vertices[j++] = ct.greenOffset;
-			vertices[j++] = ct.blueOffset;
+			vertices[j++] = _colorTransform.redOffset;
+			vertices[j++] = _colorTransform.greenOffset;
+			vertices[j++] = _colorTransform.blueOffset;
 			vertices[j++] = alphaOffset;
 			vertices[j++] = unit;
 		}

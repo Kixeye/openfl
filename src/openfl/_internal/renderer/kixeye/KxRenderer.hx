@@ -415,8 +415,13 @@ class KxRenderer extends DisplayObjectRenderer
 		}
 	}
 
-	private function _pushQuad(obj:DisplayObject, texture:KxTexture, transform:Matrix):Void
+	private function _pushQuad(obj:DisplayObject, texture:KxTexture, transform:Matrix, shadow:Bool = false):Void
 	{
+		if (!shadow && obj.__shadowOffset != null)
+		{
+			_pushQuad(obj, texture, transform, true);
+		}
+
 		var alpha = obj.__worldAlpha;
 		var blendMode = obj.__worldBlendMode;
 		var colorTransform = obj.__worldColorTransform;
@@ -545,9 +550,17 @@ class KxRenderer extends DisplayObjectRenderer
 		}
 		else
 		{
-			_setVertices(transform, 0, 0, width, height);
 			_useDefaultUvs();
-			_push(texture, blendMode, alpha, colorTransform);
+			if (shadow)
+			{
+				_setVertices(transform, obj.__shadowOffset.x, obj.__shadowOffset.y, width, height);
+				_push(texture, blendMode, alpha, colorTransform, obj.__shadowColorTransform);
+			}
+			else
+			{
+				_setVertices(transform, 0, 0, width, height);
+				_push(texture, blendMode, alpha, colorTransform);
+			}
 		}
 	}
 
@@ -609,7 +622,7 @@ class KxRenderer extends DisplayObjectRenderer
 		_uvs[7] = t;
 	}
 
-	private function _push(texture:KxTexture, blendMode:BlendMode, alpha:Float, colorTransform:ColorTransform)
+	private function _push(texture:KxTexture, blendMode:BlendMode, alpha:Float, colorTransform:ColorTransform, colorMult:ColorTransform = null)
 	{
 		texture = (texture != null && texture.valid) ? texture : _defaultTexture;
 
@@ -647,7 +660,7 @@ class KxRenderer extends DisplayObjectRenderer
 		}
 
 		var ct = colorTransform != null ? colorTransform : IDENTITY_COLOR_TRANSFORM;
-		_masks.clip(texture, unit, ct, alpha, _pos, _uvs);
+		_masks.clip(texture, unit, ct, colorMult, alpha, _pos, _uvs);
 		if (_masks.numVertices > 0)
 		{
 			_vertices.push(_masks.vertices, _masks.numVertices * _vertexStride, _masks.indices, _masks.numIndices);
