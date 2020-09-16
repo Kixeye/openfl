@@ -13,7 +13,7 @@ import openfl.Vector;
 class HTMLParser
 {
 	private static var __regexAlign:EReg = ~/align\s?=\s?("([^"]+)"|'([^']+)')/i;
-	private static var __regexBreakTag:EReg = ~/<br\s*\/?>/gi;
+	private static var __regexBreakTag:EReg = ~/<s?br\s*\/?>/gi;
 	private static var __regexBlockIndent:EReg = ~/blockindent\s?=\s?("([^"]+)"|'([^']+)')/i;
 	private static var __regexColor:EReg = ~/color\s?=\s?("#([^"]+)"|'#([^']+)')/i;
 	private static var __regexEntities:Array<EReg> = [~/&quot;/g, ~/&apos;/g, ~/&amp;/g, ~/&lt;/g, ~/&gt;/g, ~/&nbsp;/g];
