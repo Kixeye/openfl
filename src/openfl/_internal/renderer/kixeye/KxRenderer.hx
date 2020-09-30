@@ -415,11 +415,16 @@ class KxRenderer extends DisplayObjectRenderer
 		}
 	}
 
-	private function _pushQuad(obj:DisplayObject, texture:KxTexture, transform:Matrix, shadow:Bool = false):Void
+	private function _pushQuad(obj:DisplayObject, texture:KxTexture, transform:Matrix, shadow:Bool = false, stroke:Bool = false):Void
 	{
 		if (!shadow && obj.__shadowOffset != null)
 		{
 			_pushQuad(obj, texture, transform, true);
+		}
+
+		if (!stroke && obj.__strokeThickness > 0)
+		{
+			_pushQuad(obj, texture, transform, false, true);
 		}
 
 		var alpha = obj.__worldAlpha;
@@ -551,12 +556,29 @@ class KxRenderer extends DisplayObjectRenderer
 		else
 		{
 			_useDefaultUvs();
+
+			if (stroke)
+			{
+				_setVertices(transform, obj.__strokeThickness, obj.__strokeThickness, width, height);
+				_push(texture, blendMode, alpha, colorTransform, obj.__strokeColorTransform);
+
+				_setVertices(transform, obj.__strokeThickness, -obj.__strokeThickness, width, height);
+				_push(texture, blendMode, alpha, colorTransform, obj.__strokeColorTransform);
+
+				_setVertices(transform, -obj.__strokeThickness, -obj.__strokeThickness, width, height);
+				_push(texture, blendMode, alpha, colorTransform, obj.__strokeColorTransform);
+
+				_setVertices(transform, -obj.__strokeThickness, obj.__strokeThickness, width, height);
+				_push(texture, blendMode, alpha, colorTransform, obj.__strokeColorTransform);
+			}
+
 			if (shadow)
 			{
 				_setVertices(transform, obj.__shadowOffset.x, obj.__shadowOffset.y, width, height);
 				_push(texture, blendMode, alpha, colorTransform, obj.__shadowColorTransform);
 			}
-			else
+
+			if (!stroke && !shadow)
 			{
 				_setVertices(transform, 0, 0, width, height);
 				_push(texture, blendMode, alpha, colorTransform);
