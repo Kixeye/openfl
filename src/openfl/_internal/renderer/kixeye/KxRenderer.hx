@@ -47,8 +47,8 @@ import openfl.media.Video;
 @:access(openfl._internal.renderer.kixeye.KxVertexBuffer)
 class KxRenderer extends DisplayObjectRenderer
 {
-	private static inline var MAX_VERTICES:Int = 16384;
-	private static inline var MAX_INDICES:Int = 24576;
+	private static inline var MAX_VERTICES:Int = 16384 * 4;
+	private static inline var MAX_INDICES:Int = 24576 * 4;
 	private static var IDENTITY_COLOR_TRANSFORM = new ColorTransform();
 
 	public var gl:WebGLRenderingContext;
