@@ -892,7 +892,11 @@ class BitmapData implements IBitmapDrawable
 			_colorTransform.__combine(colorTransform);
 		}
 
-		__renderer.__allowSmoothing = smoothing;
+		// __renderer is not set if the Context is Canvas.
+		if (__renderer != null)
+		{
+			__renderer.__allowSmoothing = smoothing;
+		}
 
 		/*
 		if (!readable && __hardwareRenderer != null && getTexture(__hardwareRenderer.context3D) != null)
