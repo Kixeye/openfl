@@ -1509,7 +1509,7 @@ class TextField extends InteractiveObject
 		}
 		else
 		{
-			__selectionIndex = getLineOffset(getLineIndexOfChar(__selectionIndex));
+			__caretIndex = getLineOffset(getLineIndexOfChar(__selectionIndex));
 		}
 	}
 
@@ -3131,7 +3131,7 @@ class TextField extends InteractiveObject
 				if (__selectionIndex != __caretIndex)
 				{
 					replaceSelectedText("");
-					__selectionIndex = __caretIndex;
+					__selectionIndex = __caretIndex = Std.int(Math.min(__selectionIndex, __caretIndex));
 
 					dispatchEvent(new Event(Event.CHANGE, true));
 				}
@@ -3145,7 +3145,7 @@ class TextField extends InteractiveObject
 				if (__selectionIndex != __caretIndex)
 				{
 					replaceSelectedText("");
-					__selectionIndex = __caretIndex;
+					__selectionIndex = __caretIndex = Std.int(Math.min(__selectionIndex, __caretIndex));
 
 					dispatchEvent(new Event(Event.CHANGE, true));
 				}
@@ -3272,12 +3272,21 @@ class TextField extends InteractiveObject
 				__startCursorTimer();
 
 			case HOME if (selectable):
-				__caretBeginningOfLine();
+                __selectionIndex = Std.int(Math.max(__selectionIndex, __caretIndex));
+                __caretBeginningOfLine();
+                if (!modifier.shiftKey)
+                {
+                    __selectionIndex = __caretIndex;
+                }                
 				__stopCursorTimer();
 				__startCursorTimer();
 
 			case END if (selectable):
-				__caretEndOfLine();
+                __caretEndOfLine();
+                if (!modifier.shiftKey)
+                {
+                    __selectionIndex = __caretIndex;
+                }                
 				__stopCursorTimer();
 				__startCursorTimer();
 
@@ -3287,7 +3296,8 @@ class TextField extends InteractiveObject
 				{
 					if (__caretIndex != __selectionIndex)
 					{
-						Clipboard.text = __text.substring(__caretIndex, __selectionIndex);
+                        Clipboard.text = __text.substring(__caretIndex, __selectionIndex);
+
 					}
 				}
 				#end
