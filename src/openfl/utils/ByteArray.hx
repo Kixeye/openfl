@@ -1523,8 +1523,11 @@ abstract ByteArray(ByteArrayData) from ByteArrayData to ByteArrayData
 		if (position - length == 0)
 		{
 			// Haxe 4-only syntax:
-			//js.Syntax.code("return new TextDecoder(\"utf-8\").decode({0});", b);
+			#if haxe4
+			js.Syntax.code("return new TextDecoder(\"utf-8\").decode({0});", b);
+			#else
 			untyped __js__("return new TextDecoder(\"utf-8\").decode({0});", b);
+			#end
 		}
 		#end
 

@@ -111,7 +111,11 @@ class CanvasTextField
 
 				if (clearRect == null)
 				{
+					#if haxe4
 					clearRect = untyped js.Syntax.code("(typeof navigator !== 'undefined' && typeof navigator['isCocoonJS'] !== 'undefined')");
+					#else
+					clearRect = untyped __js__("(typeof navigator !== 'undefined' && typeof navigator['isCocoonJS'] !== 'undefined')");
+					#end
 				}
 
 				if (clearRect)

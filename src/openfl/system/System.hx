@@ -258,7 +258,11 @@ import cpp.vm.Gc;
 		#elseif cpp
 		return untyped __global__.__hxcpp_gc_used_bytes();
 		#elseif openfl_html5
-		return untyped js.Syntax.code("(window.performance && window.performance.memory) ? window.performance.memory.usedJSHeapSize : 0");
+			#if haxe4
+			return untyped js.Syntax.code("(window.performance && window.performance.memory) ? window.performance.memory.usedJSHeapSize : 0");
+			#else
+			return untyped __js__("(window.performance && window.performance.memory) ? window.performance.memory.usedJSHeapSize : 0");
+			#end
 		#else
 		return 0;
 		#end
