@@ -77,6 +77,8 @@ class ApplicationMain
 			vsync: ::vsync::
 		};
 
+
+
 		if (app.window == null)
 		{
 			if (config != null)
@@ -98,6 +100,18 @@ class ApplicationMain
 			lime.system.System.__parseArguments(attributes);
 			#end
 		}
+
+		trace("KIX- ApplicationMain - start attributes dump");
+		for (f in Reflect.fields(attributes))
+		{
+			if (f == "context") continue;
+			trace("KIX- attribute." + f + ": " + Reflect.field(attributes, f));
+		}
+		for (f in Reflect.fields(attributes.context))
+			{
+				trace("KIX- attribute.context." + f + ": " + Reflect.field(attributes.context, f));
+			}
+		trace("KIX- ApplicationMain - end attributes dump");
 
 		app.createWindow(attributes);
 		::end::
