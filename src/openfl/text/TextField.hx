@@ -2095,6 +2095,13 @@ class TextField extends InteractiveObject
 			}
 		}
 
+		if (!this.multiline)
+		{
+			newText = newText.split("\n").join("");
+			newText = newText.split("\r").join("");
+		}
+
+
 		__updateText(__text.substring(0, beginIndex) + newText + __text.substring(endIndex));
 		if (endIndex > __text.length) endIndex = __text.length;
 
@@ -3277,7 +3284,7 @@ class TextField extends InteractiveObject
                 if (!modifier.shiftKey)
                 {
                     __selectionIndex = __caretIndex;
-                }                
+                }
 				__stopCursorTimer();
 				__startCursorTimer();
 
@@ -3286,7 +3293,7 @@ class TextField extends InteractiveObject
                 if (!modifier.shiftKey)
                 {
                     __selectionIndex = __caretIndex;
-                }                
+                }
 				__stopCursorTimer();
 				__startCursorTimer();
 
