@@ -2190,6 +2190,13 @@ class TextField extends InteractiveObject
 			}
 		}
 
+		if (!this.multiline)
+		{
+			newText = newText.split("\n").join("");
+			newText = newText.split("\r").join("");
+		}
+
+
 		__updateText(__text.substring(0, beginIndex) + newText + __text.substring(endIndex));
 
 		var offset = newText.length - (endIndex - beginIndex);
