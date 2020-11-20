@@ -103,7 +103,11 @@ class AnimateTimeline extends Timeline
 
 					scripts.push(new FrameScript(script, frame));
 					#elseif js
+					#if haxe4
+					var script = untyped js.Syntax.code("eval({0})", "(function(){" + frameData.scriptSource + "})");
+					#else
 					var script = untyped __js__("eval({0})", "(function(){" + frameData.scriptSource + "})");
+					#end
 					var wrapper = function(scope:MovieClip)
 					{
 						try

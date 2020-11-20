@@ -1518,6 +1518,19 @@ abstract ByteArray(ByteArrayData) from ByteArrayData to ByteArrayData
 
 		position += length;
 
+		#if js
+		// Faster bypass for JS. Using TextDecoder() performs much better
+		if (position - length == 0)
+		{
+			// Haxe 4-only syntax:
+			#if haxe4
+			js.Syntax.code("return new TextDecoder(\"utf-8\").decode({0});", b);
+			#else
+			untyped __js__("return new TextDecoder(\"utf-8\").decode({0});", b);
+			#end
+		}
+		#end
+
 		return getString(position - length, length);
 	}
 

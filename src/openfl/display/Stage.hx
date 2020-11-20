@@ -911,6 +911,7 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 	#if openfljs
 	@:noCompletion private static function __init__()
 	{
+		#if haxe4
 		untyped Object.defineProperties(Stage.prototype, {
 			"color": {
 				get: untyped __js__("function () { return this.get_color (); }"),
@@ -946,6 +947,53 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 				set: untyped __js__("function (v) { return this.set_scaleMode (v); }")
 			},
 		});
+		#else
+		untyped Object.defineProperties(Stage.prototype,
+			{
+				"color":
+					{
+						get: untyped __js__("function () { return this.get_color (); }"),
+						set: untyped __js__("function (v) { return this.set_color (v); }")
+					},
+				"contentsScaleFactor":
+					{
+						get: untyped __js__("function () { return this.get_contentsScaleFactor (); }")
+					},
+				"displayState":
+					{
+						get: untyped __js__("function () { return this.get_displayState (); }"),
+						set: untyped __js__("function (v) { return this.set_displayState (v); }")
+					},
+				"focus":
+					{
+						get: untyped __js__("function () { return this.get_focus (); }"),
+						set: untyped __js__("function (v) { return this.set_focus (v); }")
+					},
+				"frameRate":
+					{
+						get: untyped __js__("function () { return this.get_frameRate (); }"),
+						set: untyped __js__("function (v) { return this.set_frameRate (v); }")
+					},
+				"fullScreenHeight":
+					{
+						get: untyped __js__("function () { return this.get_fullScreenHeight (); }")
+					},
+				"fullScreenWidth":
+					{
+						get: untyped __js__("function () { return this.get_fullScreenWidth (); }")
+					},
+				"quality":
+					{
+						get: untyped __js__("function () { return this.get_quality (); }"),
+						set: untyped __js__("function (v) { return this.set_quality (v); }")
+					},
+				"scaleMode":
+					{
+						get: untyped __js__("function () { return this.get_scaleMode (); }"),
+						set: untyped __js__("function (v) { return this.set_scaleMode (v); }")
+					},
+			});
+		#end
 	}
 	#end
 
@@ -996,7 +1044,11 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 		#if mac
 		__macKeyboard = true;
 		#elseif openfl_html5
-		__macKeyboard = untyped __js__("/AppleWebKit/.test (navigator.userAgent) && /Mobile\\/\\w+/.test (navigator.userAgent) || /Mac/.test (navigator.platform)");
+			#if haxe4
+			__macKeyboard = untyped js.Syntax.code("/AppleWebKit/.test (navigator.userAgent) && /Mobile\\/\\w+/.test (navigator.userAgent) || /Mac/.test (navigator.platform)");
+			#else
+			__macKeyboard = untyped __js__("/AppleWebKit/.test (navigator.userAgent) && /Mobile\\/\\w+/.test (navigator.userAgent) || /Mac/.test (navigator.platform)");
+			#end
 		#end
 
 		__clearBeforeRender = true;
@@ -1444,17 +1496,29 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 
 				if (exc != null && Reflect.hasField(exc, "stack") && exc.stack != null && exc.stack != "")
 				{
+					#if haxe4
+					untyped js.Syntax.code("console.log")(exc.stack);
+					#else
 					untyped __js__("console.log")(exc.stack);
+					#end
 					e.stack = exc.stack;
 				}
 				else
 				{
 					var msg = CallStack.toString(CallStack.callStack());
+					#if haxe4
+					untyped js.Syntax.code("console.log")(msg);
+					#else
 					untyped __js__("console.log")(msg);
+					#end
 				}
 			}
 			catch (e2:Dynamic) {}
+			#if haxe4
+			untyped js.Syntax.code("throw e");
+			#else
 			untyped __js__("throw e");
+			#end
 			#elseif cs
 			throw e;
 			// cs.Lib.rethrow (e);

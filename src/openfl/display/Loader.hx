@@ -799,8 +799,11 @@ class Loader extends DisplayObjectContainer
 			// var script:ScriptElement = cast Browser.document.createElement ("script");
 			// script.innerHTML = loader.data;
 			// Browser.document.head.appendChild (script);
-
+			#if haxe4
+			untyped js.Syntax.code("eval")("(function () {" + loader.data + "})()");
+			#else
 			untyped __js__("eval")("(function () {" + loader.data + "})()");
+			#end
 			#end
 
 			contentLoaderInfo.dispatchEvent(new Event(Event.COMPLETE));

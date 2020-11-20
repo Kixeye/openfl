@@ -1,5 +1,6 @@
 package openfl.display;
 
+import openfl.events.ErrorEvent;
 import openfl.events.Event;
 import openfl.events.ProgressEvent;
 import openfl.Lib;
@@ -75,6 +76,14 @@ class Preloader
 			display.dispatchEvent(new ProgressEvent(ProgressEvent.PROGRESS, true, true, loaded, total));
 		}
 	}
+
+    @:noCompletion private function onError(error:Dynamic):Void
+    {
+        if (display != null)
+        {
+            display.dispatchEvent(new ErrorEvent(ErrorEvent.ERROR, true, true, error));
+        }
+    }
 
 	// Event Handlers
 	@:noCompletion private function display_onUnload(event:Event):Void

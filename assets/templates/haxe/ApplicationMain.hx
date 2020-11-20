@@ -115,6 +115,10 @@ class ApplicationMain
 		{
 			@:privateAccess preloader.start();
 		});
+		app.preloader.onError.add(function(error:Dynamic)
+		{
+			@:privateAccess preloader.onError(error);
+		});
 
 		preloader.onComplete.add(start.bind(cast(app.window, openfl.display.Window).stage));
 
