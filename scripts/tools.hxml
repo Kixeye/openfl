@@ -1,9 +1,20 @@
+# Builds the neko asset tools (SWF/Animate exporter). RunScript rebuilds
+# scripts/tools.n with this file when it is missing.
+#
+# This fork's src/ only compiles for JS with -Dkixeye (KxRenderer imports
+# js.*, and the native renderers reference DisplayObject fields Kixeye
+# removed), so the tools compile against the fork's upstream base instead.
+# The exported types (openfl._internal.symbols.*, formats.swf.*) are
+# unchanged by Kixeye, so the output is the same.
+#
+# Requires branch haxe-4.3-migration-tools-base checked out next to this repo:
+#   git worktree add ../openfl-tools-base haxe-4.3-migration-tools-base
 -main Tools
 -neko tools.n
 -lib hxp
 -lib lime
 -lib format
--cp ../src
+-cp ../../openfl-tools-base/src
 --macro openfl._internal.macros.ExtraParams.include()
 -D lime-cairo
 -D lime-cffi
