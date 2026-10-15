@@ -107,6 +107,7 @@ import openfl._internal.renderer.cairo.CairoRenderer;
 @:access(lime.graphics.ImageBuffer)
 @:access(lime.math.Rectangle)
 @:access(openfl._internal.backend.lime.cairo.CairoRenderer)
+@:access(openfl._internal.renderer.cairo.CairoRenderer)
 @:access(openfl._internal.renderer.canvas.CanvasRenderer)
 @:access(openfl.display3D.textures.TextureBase)
 @:access(openfl.display3D.Context3D)
