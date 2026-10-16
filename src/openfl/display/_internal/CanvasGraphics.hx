@@ -2330,6 +2330,9 @@ class CanvasGraphics
 					{
 						texture.dispose();
 					}
+					#if kixeye
+					graphics.__bitmap.__disposeKxTexture();
+					#end
 					graphics.__bitmap = BitmapData.fromCanvas(graphics.__canvas);
 				}
 				else

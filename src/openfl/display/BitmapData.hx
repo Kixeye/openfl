@@ -45,6 +45,10 @@ import js.html.CanvasElement;
 import openfl.display._internal.stats.Context3DStats;
 import openfl.display._internal.stats.DrawCallContext;
 #end
+#if kixeye
+import openfl.display._internal.kixeye.KxRenderer;
+import openfl.display._internal.kixeye.KxTexture;
+#end
 
 /**
 	The BitmapData class lets you work with the data (pixels) of a Bitmap
@@ -230,6 +234,12 @@ class BitmapData implements IBitmapDrawable
 	@:noCompletion private var __worldAlpha:Float;
 	@:noCompletion private var __worldColorTransform:ColorTransform;
 	@:noCompletion private var __worldTransform:Matrix;
+
+	#if kixeye
+	@:noCompletion private static var __kxRenderer:KxRenderer;
+	@:noCompletion private var __kxTexture:KxTexture;
+	@:noCompletion private var __kxTextureVersion:Int = -1;
+	#end
 	@:noCompletion private var __asset:Bool;
 
 	/**
@@ -744,6 +754,10 @@ class BitmapData implements IBitmapDrawable
 	**/
 	public function dispose():Void
 	{
+		#if kixeye
+		__disposeKxTexture();
+		#end
+
 		#if (js && html5)
 		// if this BitmapData was created with Assets.getBitmapData(), then
 		// don't destroy the underlying image buffer.
@@ -2320,6 +2334,63 @@ class BitmapData implements IBitmapDrawable
 
 		return __texture;
 	}
+
+	#if kixeye
+	/**
+		Kixeye: the KxRenderer texture for this bitmap. Uploads the image again
+		when it has changed, and drops the image afterwards if not readable.
+	**/
+	@:noCompletion private function __getKxTexture(renderer:KxRenderer):KxTexture
+	{
+		if (!__isValid) return null;
+
+		if (image == null)
+		{
+			__disposeKxTexture();
+			return null;
+		}
+
+		if (__kxTexture != null && __kxTexture.renderer != renderer)
+		{
+			__kxTexture = null;
+			__kxTextureVersion = -1;
+		}
+
+		#if (js && html5)
+		ImageCanvasUtil.sync(image, false);
+		#end
+
+		if (image.version != __kxTextureVersion)
+		{
+			if (__kxTexture == null)
+			{
+				__kxTexture = new KxTexture(renderer, image);
+			}
+			else
+			{
+				__kxTexture.upload(image);
+			}
+			__kxTextureVersion = image.version;
+		}
+
+		if (!readable)
+		{
+			image = null;
+		}
+
+		return __kxTexture;
+	}
+
+	@:noCompletion private function __disposeKxTexture():Void
+	{
+		if (__kxTexture != null)
+		{
+			__kxTexture.dispose();
+			__kxTexture = null;
+			__kxTextureVersion = -1;
+		}
+	}
+	#end
 
 	/**
 		Generates a vector array from a rectangular region of pixel data. Returns

@@ -17,6 +17,10 @@ import openfl.utils._internal.UInt16Array;
 #if lime
 import lime.graphics.RenderContext;
 #end
+#if kixeye
+import openfl.display._internal.kixeye.KxRenderer;
+import openfl.display._internal.kixeye.KxTexture;
+#end
 
 /**
 	The Video class displays live or recorded video in an application without
@@ -175,6 +179,9 @@ class Video extends DisplayObject
 	@:noCompletion private var __stream:NetStream;
 	@:noCompletion private var __texture:RectangleTexture;
 	@:noCompletion private var __textureTime:Float;
+	#if kixeye
+	@:noCompletion private var __kxTexture:KxTexture;
+	#end
 	@:noCompletion private var __uvRect:Rectangle;
 	@:noCompletion private var __vertexBuffer:VertexBuffer3D;
 	@:noCompletion private var __vertexBufferContext:#if lime RenderContext #else Dynamic #end;
@@ -348,6 +355,40 @@ class Video extends DisplayObject
 		return null;
 		#end
 	}
+
+	#if kixeye
+	/**
+		Kixeye: the KxRenderer texture for the current video frame.
+	**/
+	@:noCompletion private function __getKxTexture(renderer:KxRenderer):KxTexture
+	{
+		#if (js && html5)
+		if (__stream == null || __stream.__video == null) return null;
+
+		var video = __stream.__video;
+
+		if (!__stream.__closed && video.currentTime != __textureTime && video.readyState > 0)
+		{
+			if (__kxTexture != null && __kxTexture.renderer != renderer)
+			{
+				__kxTexture.dispose();
+				__kxTexture = null;
+			}
+
+			if (__kxTexture == null)
+			{
+				__kxTexture = new KxTexture(renderer, null);
+			}
+			__kxTexture.uploadVideo(video, Std.int(__width), Std.int(__height));
+			__textureTime = video.currentTime;
+		}
+
+		return __kxTexture;
+		#else
+		return null;
+		#end
+	}
+	#end
 
 	@:noCompletion private function __getVertexBuffer(context:Context3D):VertexBuffer3D
 	{
