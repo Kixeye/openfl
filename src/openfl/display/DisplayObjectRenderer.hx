@@ -71,6 +71,11 @@ class DisplayObjectRenderer extends EventDispatcher
 
 	@:noCompletion private function __clear():Void {}
 
+	#if kixeye
+	// Kixeye: lets KxRenderer free its GL resources when the context is lost.
+	@:noCompletion private function __dispose():Void {}
+	#end
+
 	@:noCompletion private function __getAlpha(value:Float):Float
 	{
 		return value * __worldAlpha;
@@ -213,6 +218,12 @@ class DisplayObjectRenderer extends EventDispatcher
 
 	@:noCompletion private function __updateCacheBitmap(displayObject:DisplayObject, force:Bool):Bool
 	{
+		#if kixeye
+		// Kixeye: no cacheAsBitmap or filter bitmaps. KxRenderer draws objects
+		// directly and doesn't support filters.
+		return false;
+		#end
+
 		if (displayObject == null) return false;
 		var renderer = this;
 

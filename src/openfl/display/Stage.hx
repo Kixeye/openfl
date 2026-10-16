@@ -53,6 +53,9 @@ import openfl.profiler.Telemetry;
 #if gl_stats
 import openfl.display._internal.stats.Context3DStats;
 #end
+#if (kixeye && js && html5)
+import openfl.display._internal.kixeye.KxRenderer;
+#end
 #if (js && html5)
 import js.html.Element;
 import js.Browser;
@@ -1376,7 +1379,10 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 		switch (window.context.type)
 		{
 			case OPENGL, OPENGLES, WEBGL:
-				#if (!disable_cffi && (!html5 || !canvas))
+				#if (kixeye && js && html5)
+				// Kixeye: draw with KxRenderer instead of Context3D/OpenGLRenderer.
+				__renderer = new KxRenderer(this, window.scale);
+				#elseif (!disable_cffi && (!html5 || !canvas))
 				context3D = new Context3D(this);
 				#if openfl_dpi_aware
 				context3D.configureBackBuffer(windowWidth, windowHeight, 0, true, true, true);
@@ -2450,6 +2456,13 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 
 	@:noCompletion private function __onLimeRenderContextLost():Void
 	{
+		#if kixeye
+		// Kixeye: free KxRenderer's GL resources.
+		if (__renderer != null)
+		{
+			__renderer.__dispose();
+		}
+		#end
 		__renderer = null;
 		context3D = null;
 
