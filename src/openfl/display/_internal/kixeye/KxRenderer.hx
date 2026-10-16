@@ -1,0 +1,876 @@
+package openfl.display._internal.kixeye;
+
+#if kixeye
+import js.html.webgl.UniformLocation;
+#end
+
+import lime.math.Matrix3;
+import haxe.io.Int32Array;
+import lime.graphics.WebGLRenderContext;
+import lime.utils.Float32Array;
+import openfl.display.CanvasRenderer;
+import openfl.display._internal.CanvasTextField;
+import openfl.display._internal.CanvasGraphics;
+import openfl.display._internal.CanvasShape;
+import openfl.display.BlendMode;
+import openfl.display.Bitmap;
+import openfl.display.BitmapData;
+import openfl.display.DisplayObject;
+import openfl.display.DisplayObjectContainer;
+import openfl.display.DisplayObjectRenderer;
+import openfl.display.IBitmapDrawable;
+import openfl.display.Graphics;
+import openfl.display.SimpleButton;
+import openfl.display.Stage;
+import openfl.display.Tilemap;
+import openfl.display.Geometry;
+import openfl.text.TextField;
+import openfl.geom.ColorTransform;
+import openfl.geom.Matrix;
+import openfl.geom.Rectangle;
+import openfl.media.Video;
+
+@:access(openfl.geom.Matrix)
+@:access(openfl.geom.Rectangle)
+@:access(openfl.geom.ColorTransform)
+@:access(openfl.display.Bitmap)
+@:access(openfl.display.BitmapData)
+@:access(openfl.display.DisplayObject)
+@:access(openfl.display.Graphics)
+@:access(openfl.display.Stage)
+@:access(openfl.display.IBitmapDrawable)
+@:access(openfl.display.DisplayObjectRenderer)
+@:access(openfl.text.TextField)
+@:access(openfl.display.CanvasRenderer)
+@:access(openfl.display._internal.kixeye.KxTexture)
+@:access(openfl.display._internal.kixeye.KxVertexBuffer)
+class KxRenderer extends DisplayObjectRenderer
+{
+	private static inline var MAX_VERTICES:Int = 16384 * 4;
+	private static inline var MAX_INDICES:Int = 24576 * 4;
+	private static var IDENTITY_COLOR_TRANSFORM = new ColorTransform();
+
+	public var gl:WebGLRenderContext;
+
+	private var _stage:Stage;
+
+	private var _pixelRatio:Float;
+	private var _softwareRenderer:CanvasRenderer;
+
+	private var _width:Float;
+	private var _height:Float;
+	private var _viewMatrix = new Matrix();
+	private var _geomMatrix = new Matrix();
+
+	private var _shader:KxShader;
+	private var _geomShader:KxShader;
+	private var _viewUniform:UniformLocation;
+	private var _maxTextureUnits:Int;
+	private var _maskUnit:Int;
+	private var _defaultTexture:KxTexture;
+	private var _vertices:KxVertexBuffer;
+	private var _vertexStride:Int = 0;
+	private var _geomModelUniform:UniformLocation;
+	private var _geomViewUniform:UniformLocation;
+	private var _geomColorMultUniform:UniformLocation;
+	private var _geomColorOffsetUniform:UniformLocation;
+	private var _geomAttributes:Array<KxVertexAttribute> = [
+		new KxVertexAttribute("a_pos", 2, false),
+		new KxVertexAttribute("a_color", 4, false)
+	];
+
+	private var _pos:Array<Float> = [0, 0, 0, 0, 0, 0, 0, 0];
+	private var _uvs:Array<Float> = [0, 0, 0, 0, 0, 0, 0, 0];
+	private var _transform = new Matrix();
+	private var _graphicsTransform = new Matrix();
+
+	private var _commands:Array<Command> = [];
+	private var _blendMode:BlendMode = NORMAL;
+
+	private var _clipRects:KxClipRectStack;
+	private var _masks:KxMaskStack;
+	private var _tilemapRenderer:KxTilemapRenderer;
+
+	private var _nodesVisited:Int = 0;
+
+	public function new(stage:Stage, pixelRatio:Float)
+	{
+		super();
+
+		gl = stage.window.context.webgl;
+
+		_stage = stage;
+		_pixelRatio = pixelRatio;
+		_softwareRenderer = new CanvasRenderer(null);
+		_softwareRenderer.__pixelRatio = pixelRatio;
+		_softwareRenderer.__worldColorTransform = __worldColorTransform;
+
+		var glslVersion = gl.getParameter(gl.SHADING_LANGUAGE_VERSION);
+		trace("Shading language version: " + glslVersion);
+
+		_maxTextureUnits = Std.int(Math.min(16, gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS)));
+		_maskUnit = --_maxTextureUnits;
+
+		var maxTextureSize:Int = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+		trace("Max texture size: " + maxTextureSize);
+		if (Graphics.maxTextureWidth == null)
+		{
+			Graphics.maxTextureWidth = Graphics.maxTextureHeight = maxTextureSize;
+		}
+
+		KxTexture.maxTextureSize = maxTextureSize;
+
+		BitmapData.__kxRenderer = this;
+
+		// initial GL state
+		gl.disable(gl.DEPTH_TEST);
+		gl.disable(gl.STENCIL_TEST);
+		gl.enable(gl.SCISSOR_TEST);
+		gl.enable(gl.BLEND);
+		gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+
+		_defaultTexture = new KxTexture(this, null);
+		_defaultTexture.uploadDefault();
+
+		_vertices = new KxVertexBuffer(gl);
+		_vertices.attribute("a_pos", 2, false);
+		_vertices.attribute("a_uv", 4, false);
+		_vertices.attribute("a_colorMult", 4, false);
+		_vertices.attribute("a_colorOffset", 4, false);
+		_vertices.attribute("a_textureId", 1, false);
+		_vertexStride = _vertices.commit(MAX_VERTICES, MAX_INDICES, true);
+
+		_shader = new KxShader(gl);
+		_shader.compile(QuadShader.VERTEX, QuadShader.FRAGMENT);
+		_shader.bindAttributes(_vertices._attributes);
+		_shader.use();
+		for (i in 0..._maxTextureUnits)
+		{
+			var uniform = _shader.getUniform("u_sampler" + i);
+			gl.uniform1i(uniform, i);
+			_defaultTexture.bind(i, false);
+		}
+		gl.uniform1i(_shader.getUniform("u_mask"), _maskUnit);
+		_defaultTexture.bind(_maskUnit, false);
+		_viewUniform = _shader.getUniform("u_view");
+
+		_geomShader = new KxShader(gl);
+		_geomShader.compile(GeomShader.VERTEX, GeomShader.FRAGMENT);
+		_geomShader.bindAttributes(_geomAttributes);
+		_geomShader.use();
+		_geomModelUniform = _geomShader.getUniform("u_model");
+		_geomViewUniform = _geomShader.getUniform("u_view");
+		_geomColorMultUniform = _geomShader.getUniform("u_colorMult");
+		_geomColorOffsetUniform = _geomShader.getUniform("u_colorOffset");
+
+		_clipRects = new KxClipRectStack(this);
+		_masks = new KxMaskStack(this);
+		_tilemapRenderer = new KxTilemapRenderer(this);
+	}
+
+	private override function __dispose():Void
+	{
+		_shader.dispose();
+		_shader = null;
+		_vertices.dispose();
+		_vertices = null;
+		_commands = null;
+		_softwareRenderer.__dispose();
+		_softwareRenderer = null;
+		_clipRects = null;
+		_viewUniform = null;
+		_geomModelUniform = null;
+		_geomViewUniform = null;
+		_defaultTexture.dispose();
+		_defaultTexture = null;
+		gl = null;
+	}
+
+	private override function __resize(width:Int, height:Int):Void
+	{
+		_width = width;
+		_height = height;
+
+		_viewMatrix.setTo(
+			2 / _width,	0,
+			0, -2 / _height,
+			-1, 1
+		);
+	}
+
+	private override function __render(object:IBitmapDrawable):Void
+	{
+		_beginFrame();
+		_renderRecursive(cast object);
+		_endFrame();
+	}
+
+	private function _beginFrame():Void
+	{
+		_commands = [];
+		_vertices.begin();
+		_clipRects.begin();
+		_masks.begin();
+		_nodesVisited = 0;
+	}
+
+	private function _endFrame():Void
+	{
+		_vertices.end();
+
+		var w = Std.int(_width);
+		var h = Std.int(_height);
+		gl.viewport(0, 0, w, h);
+		gl.scissor(0, 0, w, h);
+		gl.clearColor(_stage.__colorSplit[0], _stage.__colorSplit[1], _stage.__colorSplit[2], 1);
+		gl.clear(gl.COLOR_BUFFER_BIT);
+
+		_shader.use();
+		_shader.updateUniformMat3(_viewUniform, _viewMatrix.toArray());
+		_vertices.enable();
+
+		var drawCalls = 0;
+		var quads = 0;
+		for (cmd in _commands)
+		{
+			if ((cmd.count > 0 || cmd.geom != null) && _clipRects.scissor(cmd.rect))
+			{
+				_setBlendMode(cmd.blendMode);
+				if (cmd.geom != null)
+				{
+					_drawGeom(cmd.geom);
+				}
+				else
+				{
+					for (i in 0...cmd.textures.length)
+					{
+						var texture = cmd.textures[i];
+						texture.bind(i, false);
+					}
+					if (cmd.textures.length < _maxTextureUnits)
+					{
+						for (i in cmd.textures.length..._maxTextureUnits)
+						{
+							_defaultTexture.bind(i, false);
+						}
+					}
+					_masks.bind(cmd.mask);
+					_vertices.draw(cmd.offset, cmd.count);
+				}
+				++drawCalls;
+			}
+		}
+
+		//trace("nodes: " + _nodesVisited + ", draw calls: " + drawCalls + ", quads: " + Std.int(_vertices.getNumVertices() / 4));
+		// var err = gl.getError();
+		// if (err != gl.NO_ERROR)
+		// {
+		// 	var msg = "GL error " + err;
+		// 	trace(msg);
+		// }
+	}
+
+	private function _setBlendMode(blendMode:BlendMode):Void
+	{
+		if (_blendMode == blendMode)
+		{
+			return;
+		}
+		_blendMode = blendMode;
+		switch (_blendMode)
+		{
+			case ADD: gl.blendFunc(gl.ONE, gl.ONE);
+			case MULTIPLY: gl.blendFunc(gl.DST_COLOR, gl.ONE_MINUS_SRC_ALPHA);
+			case SCREEN: gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR);
+			default: gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+		}
+	}
+
+	private function _renderRecursive(object:DisplayObject):Void
+	{
+		if (!object.__renderable)
+		{
+			return;
+		}
+
+		if (object.__drawableType == SIMPLE_BUTTON)
+		{
+			var button:SimpleButton = cast object;
+			if (button.__currentState != null)
+			{
+				_renderRecursive(button.__currentState);
+				return;
+			}
+		}
+
+		if (object.__mask != null)
+		{
+			_drawMaskGraphics(object.__mask);
+			_masks.push(object.__mask);
+		}
+		if (object.__scrollRect != null)
+		{
+			_clipRects.push(object.__scrollRect, object.__renderTransform);
+		}
+
+		_renderObject(object);
+
+		if (object.__drawableType == SPRITE || object.__drawableType == STAGE)
+		{
+			var container:DisplayObjectContainer = cast object;
+			container.__cleanupRemovedChildren();
+			if (container.__children != null)
+			{
+				for (child in container.__children)
+				{
+					_renderRecursive(child);
+				}
+			}
+		}
+
+		if (object.__scrollRect != null)
+		{
+			_clipRects.pop();
+		}
+		if (object.__mask != null)
+		{
+			_masks.pop();
+		}
+	}
+
+	private function _renderObject(object:DisplayObject):Void
+	{
+		++_nodesVisited;
+
+		_drawCacheBitmap(object);
+
+		var graphics = object.__graphics;
+		if (graphics != null && graphics.__visible && graphics.__bitmap != null)
+		{
+			var texture = graphics.__bitmap.__getKxTexture(this);
+			if (texture != null)
+			{
+				texture.pixelScale = _pixelRatio;
+				// The canvas bitmap is drawn at __bitmapScaleX/Y (text: the pixel
+				// ratio; scale9 shapes: their final size, already 9-sliced), so
+				// draw it as a plain quad, like openfl's own GL renderer.
+				_graphicsTransform.identity();
+				_graphicsTransform.scale(1 / graphics.__bitmapScaleX, 1 / graphics.__bitmapScaleY);
+				_graphicsTransform.concat(graphics.__worldTransform);
+				_pushQuad(object, texture, _graphicsTransform, false);
+			}
+		}
+		if (object.__drawableType == BITMAP)
+		{
+			var bmp:Bitmap = cast object;
+			if (bmp.__bitmapData != null)
+			{
+				_pushQuad(bmp, bmp.__bitmapData.__getKxTexture(this), bmp.__renderTransform);
+			}
+		}
+		else if (object.__drawableType == TILEMAP)
+		{
+			_tilemapRenderer.render(cast object);
+		}
+		else if (object.__drawableType == VIDEO)
+		{
+			var video:Video = cast object;
+			var texture = video.__getKxTexture(this);
+			if (texture != null)
+			{
+				_pushQuad(video, texture, video.__renderTransform);
+			}
+		}
+		else if (object.__drawableType == GEOMETRY)
+		{
+			_pushGeom(cast object);
+		}
+	}
+
+	private function _drawCacheBitmap(object:DisplayObject)
+	{
+		if (object.__drawableType == TEXT_FIELD)
+		{
+			_drawTextField(cast object);
+		}
+		else if (object.__graphics != null)
+		{
+			_drawGraphics(object.__graphics);
+		}
+	}
+
+	// Same software renderer setup as openfl's OpenGLRenderer: text is laid
+	// out without the stage scale, graphics with it (for crisp HDPI).
+	private function _drawTextField(textField:TextField):Void
+	{
+		_softwareRenderer.__pixelRatio = _pixelRatio;
+		_softwareRenderer.__worldTransform = Matrix.__identity;
+		CanvasTextField.render(textField, _softwareRenderer, textField.__worldTransform);
+	}
+
+	private function _drawGraphics(graphics:Graphics):Void
+	{
+		_softwareRenderer.__pixelRatio = _pixelRatio;
+		_softwareRenderer.__worldTransform = __worldTransform;
+		CanvasGraphics.render(graphics, _softwareRenderer);
+	}
+
+	private function _drawMaskGraphics(object:DisplayObject)
+	{
+		if (object.__graphics != null)
+		{
+			_drawGraphics(object.__graphics);
+		}
+		if (object.__drawableType == SPRITE || object.__drawableType == STAGE)
+		{
+			var container:DisplayObjectContainer = cast object;
+			for (child in container.__children)
+			{
+				_drawMaskGraphics(child);
+			}
+		}
+	}
+
+	private function _pushQuad(obj:DisplayObject, texture:KxTexture, transform:Matrix, allowScale9:Bool = true):Void
+	{
+		var alpha = obj.__worldAlpha;
+		var blendMode = obj.__worldBlendMode;
+		var colorTransform = obj.__worldColorTransform;
+		var scale9Grid = allowScale9 ? obj.__worldScale9Grid : null;
+		var width = texture._width;
+		var height = texture._height;
+
+		if (scale9Grid != null)
+		{
+			var uvWidth = 1.0;
+			var uvHeight = 1.0;
+
+			var vertexBufferWidth = obj.width;
+			var vertexBufferHeight = obj.height;
+			var vertexBufferScaleX = obj.scaleX / _pixelRatio;
+			var vertexBufferScaleY = obj.scaleY / _pixelRatio;
+
+			var centerX = scale9Grid.width;
+			var centerY = scale9Grid.height;
+			if (centerX != 0 && centerY != 0)
+			{
+				var left = scale9Grid.x;
+				var top = scale9Grid.y;
+				var right = vertexBufferWidth - centerX - left;
+				var bottom = vertexBufferHeight - centerY - top;
+
+				var uvLeft = left / vertexBufferWidth;
+				var uvTop = top / vertexBufferHeight;
+				var uvCenterX = scale9Grid.width / vertexBufferWidth;
+				var uvCenterY = scale9Grid.height / vertexBufferHeight;
+				var uvRight = right / width;
+				var uvBottom = bottom / height;
+
+				var renderedLeft = left / vertexBufferScaleX;
+				var renderedTop = top / vertexBufferScaleY;
+				var renderedRight = right / vertexBufferScaleX;
+				var renderedBottom = bottom / vertexBufferScaleY;
+				var renderedCenterX = (width - renderedLeft - renderedRight);
+				var renderedCenterY = (height - renderedTop - renderedBottom);
+
+				//  a         b          c         d
+				// p  0 ——— 1    4 ——— 5    8 ——— 9
+				//    |  /  |    |  /  |    |  /  |
+				//    2 ——— 3    6 ——— 7   10 ——— 11
+				// q
+				//   12 ——— 13  16 ——— 18  20 ——— 21
+				//    |  /  |    |  /  |    |  /  |
+				//   14 ——— 15  17 ——— 19  22 ——— 23
+				// r
+				//   24 ——— 25  28 ——— 29  32 ——— 33
+				//    |  /  |    |  /  |    |  /  |
+				//   26 ——— 27  30 ——— 31  34 ——— 35
+				// s
+
+				var a = 0;
+				var b = renderedLeft;
+				var c = renderedLeft + renderedCenterX;
+				var bc = renderedCenterX;
+				var d = width;
+				var cd = d - c;
+
+				var p = 0;
+				var q = renderedTop;
+				var r = renderedTop + renderedCenterY;
+				var qr = renderedCenterY;
+				var s = height;
+				var rs = s - r;
+
+				_setVs(0, uvHeight * uvTop);
+				_setVertices(transform, a, p, b, q);
+				_setUs(0, uvWidth * uvLeft);
+				_push(texture, blendMode, alpha, colorTransform);
+
+				_setVertices(transform, b, p, bc, q);
+				_setUs(uvWidth * uvLeft, uvWidth * (uvLeft + uvCenterX));
+				_push(texture, blendMode, alpha, colorTransform);
+
+				_setVertices(transform, c, p, cd, q);
+				_setUs(uvWidth * (uvLeft + uvCenterX), uvWidth);
+				_push(texture, blendMode, alpha, colorTransform);
+
+				_setVs(uvHeight * uvTop, uvHeight * (uvTop + uvCenterY));
+				_setVertices(transform, a, q, b, qr);
+				_setUs(0, uvWidth * uvLeft);
+				_push(texture, blendMode, alpha, colorTransform);
+
+				_setVertices(transform, b, q, bc, qr);
+				_setUs(uvWidth * uvLeft, uvWidth * (uvLeft + uvCenterX));
+				_push(texture, blendMode, alpha, colorTransform);
+
+				_setVertices(transform, c, q, cd, qr);
+				_setUs(uvWidth * (uvLeft + uvCenterX), uvWidth);
+				_push(texture, blendMode, alpha, colorTransform);
+
+				_setVs(uvHeight * (uvTop + uvCenterY), uvHeight);
+				_setVertices(transform, a, r, b, rs);
+				_setUs(0, uvWidth * uvLeft);
+				_push(texture, blendMode, alpha, colorTransform);
+
+				_setVertices(transform, b, r, bc, rs);
+				_setUs(uvWidth * uvLeft, uvWidth * (uvLeft + uvCenterX));
+				_push(texture, blendMode, alpha, colorTransform);
+
+				_setVertices(transform, c, r, cd, rs);
+				_setUs(uvWidth * (uvLeft + uvCenterX), uvWidth);
+				_push(texture, blendMode, alpha, colorTransform);
+			}
+			else if (centerX == 0 && centerY != 0)
+			{
+				// TODO
+				// 3 ——— 2
+				// |  /  |
+				// 1 ——— 0
+				// |  /  |
+				// 5 ——— 4
+				// |  /  |
+				// 7 ——— 6
+			}
+			else if (centerY == 0 && centerX != 0)
+			{
+				// TODO
+				// 3 ——— 2 ——— 5 ——— 7
+				// |  /  |  /  |  /  |
+				// 1 ——— 0 ——— 4 ——— 6
+			}
+		}
+		else
+		{
+			_useDefaultUvs();
+			_setVertices(transform, 0, 0, width, height);
+			_push(texture, blendMode, alpha, colorTransform);
+		}
+	}
+
+	public function _setVertices(transform:Matrix, x:Float, y:Float, w:Float, h:Float):Void
+	{
+		var r = x + w;
+		var b = y + h;
+
+		_transform.copyFrom(transform);
+		_transform.scale(_pixelRatio, _pixelRatio);
+
+		_pos[0] = Math.round(_transform.__transformX(x, y));
+		_pos[1] = Math.round(_transform.__transformY(x, y));
+		_pos[2] = Math.round(_transform.__transformX(r, y));
+		_pos[3] = Math.round(_transform.__transformY(r, y));
+		_pos[4] = Math.round(_transform.__transformX(r, b));
+		_pos[5] = Math.round(_transform.__transformY(r, b));
+		_pos[6] = Math.round(_transform.__transformX(x, b));
+		_pos[7] = Math.round(_transform.__transformY(x, b));
+	}
+
+	private function _useDefaultUvs():Void
+	{
+		_uvs[0] = 0;
+		_uvs[1] = 0;
+		_uvs[2] = 1;
+		_uvs[3] = 0;
+		_uvs[4] = 1;
+		_uvs[5] = 1;
+		_uvs[6] = 0;
+		_uvs[7] = 1;
+	}
+
+	private function _setUvs(u:Float, v:Float, s:Float, t:Float):Void
+	{
+		_uvs[0] = u;
+		_uvs[1] = v;
+		_uvs[2] = s;
+		_uvs[3] = v;
+		_uvs[4] = s;
+		_uvs[5] = t;
+		_uvs[6] = u;
+		_uvs[7] = t;
+	}
+
+	private function _setUs(u:Float, s:Float):Void
+	{
+		_uvs[0] = u;
+		_uvs[2] = s;
+		_uvs[4] = s;
+		_uvs[6] = u;
+	}
+
+	private function _setVs(v:Float, t:Float):Void
+	{
+		_uvs[1] = v;
+		_uvs[3] = v;
+		_uvs[5] = t;
+		_uvs[7] = t;
+	}
+
+	private function _push(texture:KxTexture, blendMode:BlendMode, alpha:Float, colorTransform:ColorTransform)
+	{
+		texture = (texture != null && texture.valid) ? texture : _defaultTexture;
+
+		var unit:Int = -1;
+		var cmd:Command = null;
+		var tail:Command = _commands.length > 0 ? _commands[_commands.length - 1] : null;
+		var newCommand:Bool = (tail == null || tail.geom != null || tail.blendMode != blendMode || tail.mask != _masks.top() || !tail.rect.equals(_clipRects.top()));
+
+		if (!newCommand)
+		{
+			for (i in 0...tail.textures.length)
+			{
+				var t = tail.textures[i];
+				if (t == texture)
+				{
+					unit = i;
+					break;
+				}
+			}
+			if (unit == -1 && tail.textures.length < _maxTextureUnits)
+			{
+				unit = tail.textures.length;
+				tail.textures.push(texture);
+			}
+		}
+		if (newCommand || unit == -1)
+		{
+			unit = 0;
+			cmd = new Command(_masks.top(), _clipRects.cacheTop(), blendMode, texture, _vertices.getNumIndices());
+			_commands.push(cmd);
+		}
+		else
+		{
+			cmd = tail;
+		}
+
+		var ct = colorTransform != null ? colorTransform : IDENTITY_COLOR_TRANSFORM;
+		_masks.clip(texture, unit, ct, alpha, _pos, _uvs);
+		if (_masks.numVertices > 0)
+		{
+			_vertices.push(_masks.vertices, _masks.numVertices * _vertexStride, _masks.indices, _masks.numIndices);
+			cmd.count += _masks.numIndices;
+		}
+	}
+
+	private function _pushGeom(geom:Geometry):Void
+	{
+		if (geom.__numVertices > 0)
+		{
+			var alpha = geom.__worldAlpha;
+			var blendMode = geom.__worldBlendMode;
+
+			_commands.push(new Command(null, _clipRects.cacheTop(), geom.__worldBlendMode, null, 0, geom));
+		}
+	}
+
+	private function _setGeomMatrix(transform:Matrix):Void
+	{
+		_geomMatrix.copyFrom(transform);
+		_geomMatrix.scale(_pixelRatio, _pixelRatio);
+	}
+
+	private function _drawGeom(geom:Geometry):Void
+	{
+		if (geom.__numVertices == 0)
+		{
+			return;
+		}
+
+		if (geom.__vertexBuffer == null)
+		{
+			geom.__vertexBuffer = new KxVertexBuffer(gl);
+			var stride = geom.__vertexBuffer.setAttributes(_geomAttributes);
+			geom.__vertexBuffer.push(geom.__vertices, stride * geom.__numVertices, null, 0);
+			geom.__vertexBuffer.commit(geom.__numVertices, 0, false);
+		}
+
+		_setGeomMatrix(geom.__renderTransform);
+
+		_geomShader.use();
+		_geomShader.updateUniformMat3(_geomModelUniform, _geomMatrix.toArray());
+		_geomShader.updateUniformMat3(_geomViewUniform, _viewMatrix.toArray());
+		var alpha = geom.__worldAlpha;
+		var ct = geom.__worldColorTransform;
+		if (ct != null && !ct.__isDefault(true))
+		{
+			_geomShader.updateUniform4(_geomColorMultUniform, ct.redMultiplier, ct.greenMultiplier, ct.blueMultiplier, ct.alphaMultiplier * alpha);
+			_geomShader.updateUniform4(_geomColorOffsetUniform, ct.redOffset, ct.greenOffset, ct.blueOffset, ct.alphaOffset * alpha);
+		}
+		else
+		{
+			_geomShader.updateUniform4(_geomColorMultUniform, 1, 1, 1, alpha);
+			_geomShader.updateUniform4(_geomColorOffsetUniform, 0, 0, 0, 0);
+		}
+		geom.__vertexBuffer.enable();
+		geom.__vertexBuffer.draw(0, geom.__numVertices);
+
+		_shader.use();
+		_shader.updateUniformMat3(_viewUniform, _viewMatrix.toArray());
+		_vertices.enable();
+	}
+}
+
+private class Command
+{
+	public var mask:DisplayObject;
+	public var rect:KxRect;
+	public var blendMode:BlendMode;
+	public var textures:Array<KxTexture>;
+	public var offset:Int;
+	public var count:Int;
+
+	public var geom:Geometry;
+
+	public function new(mask:DisplayObject, rect:KxRect, blendMode:BlendMode, texture:KxTexture, offset:Int, geom:Geometry = null)
+	{
+		this.mask = mask;
+		this.rect = rect;
+		this.blendMode = blendMode;
+		this.textures = [ texture ];
+		this.offset = offset;
+		this.count = 0;
+		this.geom = geom;
+	}
+}
+
+private class GeomShader
+{
+	public static inline var VERTEX:String = '
+		precision mediump float;
+
+		uniform mat3 u_model;
+		uniform mat3 u_view;
+
+		attribute vec2 a_pos;
+		attribute vec4 a_color;
+
+		varying vec4 v_color;
+
+		void main(void)
+		{
+			v_color = a_color;
+			vec3 p = vec3(a_pos, 1) * u_model * u_view;
+			gl_Position = vec4(p, 1);
+		}
+	';
+
+	public static inline var FRAGMENT:String = '
+		precision mediump float;
+
+		uniform vec4 u_colorMult;
+		uniform vec4 u_colorOffset;
+
+		varying vec4 v_color;
+
+		void main(void)
+		{
+			vec4 color = v_color;
+			color.rgb /= color.a;
+			color = clamp((color * u_colorMult) + u_colorOffset, 0.0, 1.0);
+			gl_FragColor = vec4(color.rgb * color.a, color.a);
+		}
+	';
+}
+
+private class QuadShader
+{
+	public static inline var VERTEX:String = '
+		precision mediump float;
+
+		uniform mat3 u_view;
+
+		attribute vec2 a_pos;
+		attribute vec4 a_uv;
+		attribute vec4 a_colorMult;
+		attribute vec4 a_colorOffset;
+		attribute float a_textureId;
+
+		varying vec4 v_uv;
+		varying vec4 v_colorMult;
+		varying vec4 v_colorOffset;
+		varying float v_textureId;
+
+		void main(void)
+		{
+			v_uv = a_uv;
+			v_colorMult = a_colorMult;
+			v_colorOffset = a_colorOffset / 255.0;
+			v_textureId = a_textureId;
+
+			vec3 p = vec3(a_pos, 1) * u_view;
+			gl_Position = vec4(p, 1);
+		}
+	';
+
+	public static inline var FRAGMENT:String = '
+		precision mediump float;
+
+		varying vec4 v_uv;
+		varying vec4 v_colorMult;
+		varying vec4 v_colorOffset;
+		varying float v_textureId;
+
+		uniform sampler2D u_sampler0;
+		uniform sampler2D u_sampler1;
+		uniform sampler2D u_sampler2;
+		uniform sampler2D u_sampler3;
+		uniform sampler2D u_sampler4;
+		uniform sampler2D u_sampler5;
+		uniform sampler2D u_sampler6;
+		uniform sampler2D u_sampler7;
+		uniform sampler2D u_sampler8;
+		uniform sampler2D u_sampler9;
+		uniform sampler2D u_sampler10;
+		uniform sampler2D u_sampler11;
+		uniform sampler2D u_sampler12;
+		uniform sampler2D u_sampler13;
+		uniform sampler2D u_sampler14;
+		uniform sampler2D u_mask;
+
+		void main(void)
+		{
+			vec4 color;
+
+			if (v_textureId == 0.0) color = texture2D(u_sampler0, v_uv.xy);
+			else if (v_textureId == 1.0) color = texture2D(u_sampler1, v_uv.xy);
+			else if (v_textureId == 2.0) color = texture2D(u_sampler2, v_uv.xy);
+			else if (v_textureId == 3.0) color = texture2D(u_sampler3, v_uv.xy);
+			else if (v_textureId == 4.0) color = texture2D(u_sampler4, v_uv.xy);
+			else if (v_textureId == 5.0) color = texture2D(u_sampler5, v_uv.xy);
+			else if (v_textureId == 6.0) color = texture2D(u_sampler6, v_uv.xy);
+			else if (v_textureId == 7.0) color = texture2D(u_sampler7, v_uv.xy);
+			else if (v_textureId == 8.0) color = texture2D(u_sampler8, v_uv.xy);
+			else if (v_textureId == 9.0) color = texture2D(u_sampler9, v_uv.xy);
+			else if (v_textureId == 10.0) color = texture2D(u_sampler10, v_uv.xy);
+			else if (v_textureId == 11.0) color = texture2D(u_sampler11, v_uv.xy);
+			else if (v_textureId == 12.0) color = texture2D(u_sampler12, v_uv.xy);
+			else if (v_textureId == 13.0) color = texture2D(u_sampler13, v_uv.xy);
+			else if (v_textureId == 14.0) color = texture2D(u_sampler14, v_uv.xy);
+
+			vec4 mask = texture2D(u_mask, v_uv.zw);
+
+			color.rgb /= color.a;
+			color = clamp((color * v_colorMult) + v_colorOffset, 0.0, 1.0);
+			gl_FragColor = vec4(color.rgb * color.a, color.a) * mask.a;
+		}
+	';
+}
