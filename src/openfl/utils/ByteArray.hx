@@ -1569,6 +1569,18 @@ abstract ByteArray(ByteArrayData) from ByteArrayData to ByteArrayData
 
 		position += length;
 
+		#if js
+		// Kixeye: TextDecoder is much faster than decoding one character at a
+		// time. Decode only the requested bytes, and stop at the first NUL
+		// like getString() does.
+		if (position - length == 0)
+		{
+			var text:String = js.Syntax.code("new TextDecoder(\"utf-8\").decode({0}.subarray(0, {1}))", b, length);
+			var end = text.indexOf(String.fromCharCode(0));
+			return end == -1 ? text : text.substr(0, end);
+		}
+		#end
+
 		return getString(position - length, length);
 	}
 
